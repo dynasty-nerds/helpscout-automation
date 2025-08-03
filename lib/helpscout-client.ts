@@ -49,4 +49,64 @@ export class HelpScoutClient {
 
     return response.data
   }
+
+  async getFolders(mailboxId: number) {
+    await this.authenticate()
+
+    const response = await axios.get(`${this.baseURL}/mailboxes/${mailboxId}/folders`, {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+      },
+    })
+
+    return response.data
+  }
+
+  async moveConversation(conversationId: number, folderId: number) {
+    await this.authenticate()
+
+    await axios.patch(
+      `${this.baseURL}/conversations/${conversationId}`,
+      {
+        op: 'move',
+        path: '/folderId',
+        value: folderId,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+  }
+
+  async addTag(conversationId: number, tag: string) {
+    await this.authenticate()
+
+    await axios.put(
+      `${this.baseURL}/conversations/${conversationId}/tags`,
+      {
+        tags: [tag],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+  }
+
+  async getMailboxes() {
+    await this.authenticate()
+
+    const response = await axios.get(`${this.baseURL}/mailboxes`, {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+      },
+    })
+
+    return response.data
+  }
 }
