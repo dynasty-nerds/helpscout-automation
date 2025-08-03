@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "pages/api/scan-conversations.ts": {
-      "maxDuration": 60
-    }
-  },
   "crons": [
     {
       "path": "/api/scan-conversations",
