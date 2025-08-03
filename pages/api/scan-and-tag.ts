@@ -6,7 +6,15 @@ function createAnalysisNote(sentiment: any, conversation: any): string {
   const triggers = []
   
   if (sentiment.indicators.hasProfanity) {
-    triggers.push('🤬 Profanity detected')
+    triggers.push(`🤬 Profanity detected (${sentiment.indicators.profanityCount} instances)`)
+  }
+  
+  if (sentiment.indicators.hasNegativeWords) {
+    const total = sentiment.indicators.negativeWordCount + sentiment.indicators.negativeContextCount
+    triggers.push(`😤 Negative language (${total} instances)`)
+    if (sentiment.indicators.negativeContextCount > 0) {
+      triggers.push(`  └─ Criticizing service/app/company`)
+    }
   }
   
   if (sentiment.indicators.refundMentions > 0) {
@@ -18,7 +26,7 @@ function createAnalysisNote(sentiment: any, conversation: any): string {
   }
   
   if (sentiment.indicators.capsRatio > 0.3) {
-    triggers.push('📢 High capitalization (shouting)')
+    triggers.push(`📢 High capitalization (${Math.round(sentiment.indicators.capsRatio * 100)}% caps)`)
   }
   
   const issue = conversation.preview || conversation.subject || 'No preview available'

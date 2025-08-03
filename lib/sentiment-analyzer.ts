@@ -2,6 +2,10 @@ interface SentimentResult {
   score: number; // 0-100, higher = angrier
   indicators: {
     hasProfanity: boolean;
+    profanityCount: number;
+    hasNegativeWords: boolean;
+    negativeWordCount: number;
+    negativeContextCount: number;
     capsRatio: number;
     urgencyKeywords: string[];
     refundMentions: number;
@@ -12,13 +16,25 @@ interface SentimentResult {
 
 export class SentimentAnalyzer {
   private profanityWords = [
-    'damn', 'hell', 'crap', 'piss', 'fuck', 'shit', 'ass', 'bitch',
-    'bastard', 'stupid', 'idiot', 'suck'
+    'fuck', 'shit', 'ass', 'bitch', 'cunt', 'piss', 'damn', 'hell',
+    'bastard', 'dick', 'pussy', 'cock', 'bullshit', 'asshole',
+    'fucking', 'shitty', 'fucked', 'dammit', 'goddamn'
   ];
   
   private negativeWords = [
     'terrible', 'awful', 'horrible', 'disgusting', 'pathetic', 
-    'useless', 'worthless', 'garbage', 'trash', 'ridiculous'
+    'useless', 'worthless', 'garbage', 'trash', 'ridiculous',
+    'bad', 'poor', 'worst', 'sucks', 'crap', 'stupid', 'dumb',
+    'idiotic', 'incompetent', 'unprofessional', 'unacceptable'
+  ];
+  
+  private negativeContextPhrases = [
+    'bad service', 'terrible service', 'awful service', 'poor service',
+    'bad customer service', 'terrible customer service', 'poor customer service',
+    'bad app', 'terrible app', 'awful app', 'broken app',
+    'bad company', 'terrible company', 'worst company',
+    'bad support', 'terrible support', 'no support',
+    'bad experience', 'terrible experience', 'awful experience'
   ];
 
   private urgencyKeywords = [
@@ -75,6 +91,11 @@ export class SentimentAnalyzer {
       lowerText.includes(word)
     ).length;
     
+    // Check for negative context phrases (bad service, etc.)
+    const negativeContextCount = this.negativeContextPhrases.filter(phrase =>
+      lowerText.includes(phrase)
+    ).length;
+    
     // Calculate anger score
     let score = 0;
     
@@ -85,6 +106,9 @@ export class SentimentAnalyzer {
     
     // Negative words add moderate points
     score += negativeWordCount * 5;
+    
+    // Negative context phrases are more serious (bad service, etc.)
+    score += negativeContextCount * 15;
     
     // High caps ratio indicates shouting
     if (capsRatio > 0.5) score += 25;
@@ -123,6 +147,10 @@ export class SentimentAnalyzer {
       score,
       indicators: {
         hasProfanity,
+        profanityCount,
+        hasNegativeWords: negativeWordCount > 0 || negativeContextCount > 0,
+        negativeWordCount,
+        negativeContextCount,
         capsRatio,
         urgencyKeywords: foundUrgencyKeywords,
         refundMentions,
