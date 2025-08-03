@@ -13,8 +13,12 @@ interface SentimentResult {
 export class SentimentAnalyzer {
   private profanityWords = [
     'damn', 'hell', 'crap', 'piss', 'fuck', 'shit', 'ass', 'bitch',
-    'bastard', 'stupid', 'idiot', 'suck', 'terrible', 'awful', 'horrible',
-    'disgusting', 'pathetic', 'useless', 'worthless', 'garbage', 'trash'
+    'bastard', 'stupid', 'idiot', 'suck'
+  ];
+  
+  private negativeWords = [
+    'terrible', 'awful', 'horrible', 'disgusting', 'pathetic', 
+    'useless', 'worthless', 'garbage', 'trash', 'ridiculous'
   ];
 
   private urgencyKeywords = [
@@ -66,6 +70,11 @@ export class SentimentAnalyzer {
       lowerText.includes(word)
     ).length;
     
+    // Count negative words (less severe than profanity)
+    const negativeWordCount = this.negativeWords.filter(word =>
+      lowerText.includes(word)
+    ).length;
+    
     // Calculate anger score
     let score = 0;
     
@@ -73,6 +82,9 @@ export class SentimentAnalyzer {
     if (hasProfanity) {
       score += 20 + (profanityCount * 10); // Base 20 + 10 per profanity
     }
+    
+    // Negative words add moderate points
+    score += negativeWordCount * 5;
     
     // High caps ratio indicates shouting
     if (capsRatio > 0.5) score += 25;

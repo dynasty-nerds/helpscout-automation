@@ -98,6 +98,23 @@ export class HelpScoutClient {
     )
   }
 
+  async addNote(conversationId: number, text: string) {
+    await this.authenticate()
+
+    await axios.post(
+      `${this.baseURL}/conversations/${conversationId}/notes`,
+      {
+        text,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+  }
+
   async getMailboxes() {
     await this.authenticate()
 

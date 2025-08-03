@@ -2,6 +2,40 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { HelpScoutClient } from '../../lib/helpscout-client'
 import { SentimentAnalyzer } from '../../lib/sentiment-analyzer'
 
+function createAnalysisNote(sentiment: any, conversation: any): string {
+  const triggers = []
+  
+  if (sentiment.indicators.hasProfanity) {
+    triggers.push('🤬 Profanity detected')
+  }
+  
+  if (sentiment.indicators.refundMentions > 0) {
+    triggers.push('💰 Refund/cancellation request')
+  }
+  
+  if (sentiment.indicators.urgencyKeywords.length > 0) {
+    triggers.push(`⚡ Urgent: ${sentiment.indicators.urgencyKeywords.join(', ')}`)
+  }
+  
+  if (sentiment.indicators.capsRatio > 0.3) {
+    triggers.push('📢 High capitalization (shouting)')
+  }
+  
+  const issue = conversation.preview || conversation.subject || 'No preview available'
+  
+  return `🚨 ANGRY CUSTOMER DETECTED (Score: ${sentiment.score}/100)
+
+📋 Issue Summary:
+${issue}
+
+🎯 Triggers Detected:
+${triggers.join('\n')}
+
+⏰ Tagged by automation at ${new Date().toLocaleString()}
+
+Please prioritize this customer for immediate response.`
+}
+
 interface AngryCustomer {
   conversationId: number
   customerEmail: string
@@ -64,6 +98,11 @@ export default async function handler(
         
         try {
           await client.addTag(conversation.id, 'angry-customer')
+          
+          // Create a note with the analysis
+          const noteText = createAnalysisNote(sentiment, conversation)
+          await client.addNote(conversation.id, noteText)
+          
           tagged = true
           taggedCount++
           console.log(`Tagged conversation ${conversation.id} with anger score ${sentiment.score}`)
