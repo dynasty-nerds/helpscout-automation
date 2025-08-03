@@ -1,6 +1,6 @@
 {
   "functions": {
-    "src/pages/api/scan-conversations.ts": {
+    "pages/api/scan-conversations.ts": {
       "maxDuration": 60
     }
   },
