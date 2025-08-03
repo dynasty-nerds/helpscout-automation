@@ -3,9 +3,12 @@ interface SentimentResult {
   indicators: {
     hasProfanity: boolean;
     profanityCount: number;
+    profanityFound: string[];
     hasNegativeWords: boolean;
     negativeWordCount: number;
+    negativeWordsFound: string[];
     negativeContextCount: number;
+    negativeContextFound: string[];
     capsRatio: number;
     urgencyKeywords: string[];
     refundMentions: number;
@@ -63,10 +66,21 @@ export class SentimentAnalyzer {
     const lowerText = text.toLowerCase();
     const words = lowerText.split(/\s+/);
     
-    // Check for profanity
-    const hasProfanity = this.profanityWords.some(word => 
-      lowerText.includes(word)
-    );
+    // Check for profanity and capture matches with context
+    const profanityFound: string[] = []
+    this.profanityWords.forEach(word => {
+      if (lowerText.includes(word)) {
+        // Find the word in context (up to 30 chars before and after)
+        const index = text.toLowerCase().indexOf(word)
+        const start = Math.max(0, index - 30)
+        const end = Math.min(text.length, index + word.length + 30)
+        const context = text.substring(start, end).trim()
+        if (!profanityFound.some(p => p.includes(context))) { // Avoid duplicates
+          profanityFound.push(`"...${context}..."`)
+        }
+      }
+    });
+    const hasProfanity = profanityFound.length > 0;
     
     // Calculate capitalization ratio
     const capsRatio = this.calculateCapsRatio(text);
@@ -86,15 +100,35 @@ export class SentimentAnalyzer {
       lowerText.includes(word)
     ).length;
     
-    // Count negative words (less severe than profanity)
-    const negativeWordCount = this.negativeWords.filter(word =>
-      lowerText.includes(word)
-    ).length;
+    // Count negative words and capture them
+    const negativeWordsFound: string[] = []
+    this.negativeWords.forEach(word => {
+      if (lowerText.includes(word)) {
+        const index = text.toLowerCase().indexOf(word)
+        const start = Math.max(0, index - 20)
+        const end = Math.min(text.length, index + word.length + 20)
+        const context = text.substring(start, end).trim()
+        if (!negativeWordsFound.some(p => p.includes(context))) {
+          negativeWordsFound.push(`"...${context}..."`)
+        }
+      }
+    });
+    const negativeWordCount = negativeWordsFound.length;
     
     // Check for negative context phrases (bad service, etc.)
-    const negativeContextCount = this.negativeContextPhrases.filter(phrase =>
-      lowerText.includes(phrase)
-    ).length;
+    const negativeContextFound: string[] = []
+    this.negativeContextPhrases.forEach(phrase => {
+      if (lowerText.includes(phrase)) {
+        const index = text.toLowerCase().indexOf(phrase)
+        const start = Math.max(0, index - 10)
+        const end = Math.min(text.length, index + phrase.length + 10)
+        const context = text.substring(start, end).trim()
+        if (!negativeContextFound.some(p => p.includes(context))) {
+          negativeContextFound.push(`"...${context}..."`)
+        }
+      }
+    });
+    const negativeContextCount = negativeContextFound.length;
     
     // Calculate anger score
     let score = 0;
@@ -148,9 +182,12 @@ export class SentimentAnalyzer {
       indicators: {
         hasProfanity,
         profanityCount,
+        profanityFound,
         hasNegativeWords: negativeWordCount > 0 || negativeContextCount > 0,
         negativeWordCount,
+        negativeWordsFound,
         negativeContextCount,
+        negativeContextFound,
         capsRatio,
         urgencyKeywords: foundUrgencyKeywords,
         refundMentions,
