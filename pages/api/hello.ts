@@ -4,5 +4,5 @@ export default function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  res.status(200).json({ message: 'Hello from HelpScout Automation API' })
+  res.status(200).json({ message: 'Hello from HelpScout Automation API', timestamp: new Date().toISOString() })
 }
