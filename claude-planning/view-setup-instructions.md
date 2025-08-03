@@ -1,23 +1,32 @@
-# Setting Up the Angry Customers View
+# Setting Up the High Urgency View
 
 **Type**: Documentation
 
 ## Overview
-Since HelpScout uses Views (saved searches) rather than folders for organizing conversations, we'll use tags to identify angry customers and filter them in your view.
+The system now identifies high urgency tickets based on multiple factors, not just anger. We use tags to categorize and prioritize tickets appropriately.
 
-## Setup Instructions
+## Tag System
 
-### 1. Tag Configuration
-The system will automatically tag conversations with `angry-customer` when:
-- Anger score is 50 or higher
-- Contains profanity, urgency keywords, or service complaints
-- Mentions refunds, cancellations, or money back
+### 1. Primary Tags
+- **high-urgency**: Any ticket requiring immediate attention
+- **angry**: Customer showing anger through profanity, negative language, or shouting
 
-### 2. Configure Your "Angry Customers" View
-In HelpScout, edit your Angry Customers view to include these filters:
+### 2. Score Tags
+- **urgency-score-XX**: Tracks urgency level (0-100)
+- **anger-score-XX**: Tracks anger level (0-100)
+
+### 3. When Tags Are Applied
+The system tags conversations as high-urgency when:
+- Subscription/billing issues mentioned (refund, cancel, charged)
+- Urgent keywords used (immediately, now, asap)
+- Customer is angry (profanity, negative language, caps)
+- Multiple attempts or long wait times mentioned
+
+### 2. Configure Your High Urgency View
+In HelpScout, update your view to include these filters:
 - **Status**: Active
-- **Tags**: Contains "angry-customer"
-- **Sort by**: Created (newest first) or Updated (most recent activity)
+- **Tags**: Contains "high-urgency"
+- **Sort by**: Updated (most recent activity) or Created (newest first)
 
 ### 3. Optional Additional Filters
 You might also want to add:

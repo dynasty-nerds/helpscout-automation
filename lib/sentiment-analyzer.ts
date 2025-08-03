@@ -1,5 +1,8 @@
 interface SentimentResult {
-  score: number; // 0-100, higher = angrier
+  angerScore: number; // 0-100, based on profanity, negative words, caps
+  urgencyScore: number; // 0-100, based on urgency keywords, subscription issues
+  isAngry: boolean;
+  isHighUrgency: boolean;
   indicators: {
     hasProfanity: boolean;
     profanityCount: number;
@@ -11,10 +14,10 @@ interface SentimentResult {
     negativeContextFound: string[];
     capsRatio: number;
     urgencyKeywords: string[];
-    refundMentions: number;
-    cancelMentions: number;
+    subscriptionMentions: number; // refunds, cancellations, billing issues
+    isPoliteRequest: boolean; // uses please, thank you, etc.
   };
-  confidence: 'high' | 'medium' | 'low';
+  categories: string[]; // ['angry', 'subscription-related', 'urgent', 'polite']
 }
 
 export class SentimentAnalyzer {
@@ -54,12 +57,18 @@ export class SentimentAnalyzer {
     "you people", "you guys are", "no idea what"
   ];
 
-  private refundKeywords = [
+  private subscriptionKeywords = [
     'refund', 'money back', 'charge back', 'chargeback', 'reimburse',
-    'reimbursement', 'cancel subscription', 'want my money', 'demand refund',
-    'cancel', 'cancellation', 'unsubscribe', 'stop subscription', 
-    'end subscription', 'terminate', 'want to cancel', 'cancel my account',
-    'stop billing', 'stop charging', 'close account', 'delete account'
+    'reimbursement', 'cancel subscription', 'cancel', 'cancellation', 
+    'unsubscribe', 'stop subscription', 'end subscription', 'terminate', 
+    'want to cancel', 'cancel my account', 'stop billing', 'stop charging', 
+    'close account', 'delete account', 'billing issue', 'payment problem',
+    'charged', 'subscription', 'membership'
+  ];
+  
+  private politeWords = [
+    'please', 'thank you', 'thanks', 'appreciate', 'kindly', 'would you',
+    'could you', 'if possible', 'when you get a chance', 'sorry'
   ];
 
   analyze(text: string): SentimentResult {
@@ -90,10 +99,15 @@ export class SentimentAnalyzer {
       lowerText.includes(keyword)
     );
     
-    // Count refund/cancel mentions
-    const refundMentions = this.refundKeywords.filter(keyword =>
+    // Count subscription/billing mentions
+    const subscriptionMentions = this.subscriptionKeywords.filter(keyword =>
       lowerText.includes(keyword)
     ).length;
+    
+    // Check for politeness
+    const isPoliteRequest = this.politeWords.some(word =>
+      lowerText.includes(word)
+    );
     
     // Count profanity occurrences
     const profanityCount = this.profanityWords.filter(word =>
@@ -130,55 +144,75 @@ export class SentimentAnalyzer {
     });
     const negativeContextCount = negativeContextFound.length;
     
-    // Calculate anger score
-    let score = 0;
+    // Calculate ANGER score (profanity, negative words, shouting, insults)
+    let angerScore = 0;
     
-    // Profanity adds significant points (more profanity = higher score)
+    // Profanity is strong indicator of anger
     if (hasProfanity) {
-      score += 20 + (profanityCount * 10); // Base 20 + 10 per profanity
+      angerScore += 30 + (profanityCount * 15);
     }
     
-    // Negative words add moderate points
-    score += negativeWordCount * 5;
-    
-    // Negative context phrases are more serious (bad service, etc.)
-    score += negativeContextCount * 15;
+    // Negative words and context
+    angerScore += negativeWordCount * 5;
+    angerScore += negativeContextCount * 15;
     
     // High caps ratio indicates shouting
-    if (capsRatio > 0.5) score += 25;
-    else if (capsRatio > 0.3) score += 15;
+    if (capsRatio > 0.5) angerScore += 30;
+    else if (capsRatio > 0.3) angerScore += 20;
     
-    // Check for insults about service/competence
+    // Check for insults
     const foundInsults = this.insultKeywords.filter(keyword =>
       lowerText.includes(keyword)
     ).length;
-    
-    // Urgency keywords
-    score += foundUrgencyKeywords.length * 10;
-    
-    // Insults about service quality
-    score += foundInsults * 15;
-    
-    // Refund/cancel mentions are critical
-    score += refundMentions * 20;
+    angerScore += foundInsults * 20;
     
     // Multiple exclamation marks
     const exclamationCount = (text.match(/!/g) || []).length;
-    if (exclamationCount > 3) score += 10;
+    if (exclamationCount > 3) angerScore += 15;
     
-    // Cap at 100
-    score = Math.min(100, score);
-    
-    // Determine confidence
-    let confidence: 'high' | 'medium' | 'low' = 'low';
-    if (score > 70 || (refundMentions > 0 && hasProfanity)) {
-      confidence = 'high';
-    } else if (score > 40) {
-      confidence = 'medium';
+    // If polite, reduce anger score
+    if (isPoliteRequest && angerScore > 0) {
+      angerScore = Math.max(0, angerScore - 20);
     }
     
+    angerScore = Math.min(100, angerScore);
+    
+    // Calculate URGENCY score (subscription issues, urgency keywords, multiple attempts)
+    let urgencyScore = 0;
+    
+    // Subscription/billing issues are always urgent
+    if (subscriptionMentions > 0) {
+      urgencyScore += 40 + (subscriptionMentions * 10);
+    }
+    
+    // Urgency keywords
+    urgencyScore += foundUrgencyKeywords.length * 15;
+    
+    // If they mention being charged multiple times or waiting long
+    if (lowerText.includes('still being charged') || lowerText.includes('months ago') || 
+        lowerText.includes('weeks ago') || lowerText.includes('multiple times')) {
+      urgencyScore += 30;
+    }
+    
+    // If angry, it's also urgent
+    if (angerScore > 50) {
+      urgencyScore = Math.max(urgencyScore, 60);
+    }
+    
+    urgencyScore = Math.min(100, urgencyScore);
+    
+    // Determine categories
+    const categories: string[] = [];
+    if (angerScore >= 40) categories.push('angry');
+    if (subscriptionMentions > 0) categories.push('subscription-related');
+    if (urgencyScore >= 50) categories.push('urgent');
+    if (isPoliteRequest) categories.push('polite');
+    
     return {
-      score,
+      angerScore,
+      urgencyScore,
+      isAngry: angerScore >= 40,
+      isHighUrgency: urgencyScore >= 50,
       indicators: {
         hasProfanity,
         profanityCount,
@@ -190,10 +224,10 @@ export class SentimentAnalyzer {
         negativeContextFound,
         capsRatio,
         urgencyKeywords: foundUrgencyKeywords,
-        refundMentions,
-        cancelMentions: 0
+        subscriptionMentions,
+        isPoliteRequest
       },
-      confidence
+      categories
     };
   }
   
