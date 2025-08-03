@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "src/pages/api/scan-conversations.ts": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/scan-conversations",
+      "schedule": "*/15 9-17 * * 1-5"
+    }
+  ]
+}
