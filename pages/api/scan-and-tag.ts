@@ -235,7 +235,7 @@ async function createAnalysisNote(
       
       // Generate AI response
       console.log(`Calling Claude API for conversation ${conversation.id}`)
-      console.log(`Customer message preview: ${customerMessage.substring(0, 100)}...`)
+      console.log(`Customer message preview: ${customerMessage ? customerMessage.substring(0, 100) + '...' : 'No message'}`)
       console.log(`Found ${relevantDocs.length} relevant docs`)
       const aiResponse = await claudeClient.generateResponse(
         customerMessage,
@@ -243,11 +243,11 @@ async function createAnalysisNote(
         contextDocs,
         customerFirstName
       )
-      console.log(`AI response generated for conversation ${conversation.id}: ${aiResponse.suggestedResponse.substring(0, 50)}...`)
+      console.log(`AI response generated for conversation ${conversation.id}: ${aiResponse.suggestedResponse ? aiResponse.suggestedResponse.substring(0, 50) + '...' : 'No response'}`)
       
       // Store the suggested response separately
       suggestedResponse = aiResponse.suggestedResponse
-      hasAIResponse = true
+      hasAIResponse = !!aiResponse.suggestedResponse
       
       parts.push(`\n✅ AI Draft Reply Created [Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
       
@@ -534,12 +534,12 @@ export default async function handler(
               // Generate AI response and add note for ALL non-spam tickets
               const analysisResult = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
               if (dryRun) {
-                console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${analysisResult.noteText.substring(0, 100)}...`)
+                console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${analysisResult.noteText ? analysisResult.noteText.substring(0, 100) + '...' : 'No note'}`)
                 if (analysisResult.hasAIResponse && analysisResult.suggestedResponse) {
                   console.log(`[DRY RUN] Would create draft reply with AI response`)
                 }
               } else {
-                console.log(`Adding note to ${conversation.id}. Note preview: ${analysisResult.noteText.substring(0, 100)}...`)
+                console.log(`Adding note to ${conversation.id}. Note preview: ${analysisResult.noteText ? analysisResult.noteText.substring(0, 100) + '...' : 'No note'}`)
                 await client.addNote(conversation.id, analysisResult.noteText)
                 console.log(`Successfully added note to ticket ${conversation.id}`)
                 
