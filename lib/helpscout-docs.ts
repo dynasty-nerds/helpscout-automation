@@ -87,7 +87,7 @@ export class HelpScoutDocsClient {
             sort: 'updatedAt'
           })
           const articlesList = data.articles?.items || data.articles || data.items || []
-          console.log(`Collection "${collection.name || collection.title}" (${collection.id}): ${articlesList.length} articles`)
+          console.log(`Collection "${collection.name || collection.title}" (${collection.id}): ${articlesList.length} published articles`)
           const collectionArticles = articlesList.map((article: any) => ({
             ...article,
             collectionId: collection.id
