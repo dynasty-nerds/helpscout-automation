@@ -3,74 +3,70 @@ import { HelpScoutClient } from '../../lib/helpscout-client'
 import { SentimentAnalyzer } from '../../lib/sentiment-analyzer'
 
 function createAnalysisNote(sentiment: any, conversation: any): string {
-  const triggers = []
-  const categories = sentiment.categories.join(', ')
+  const parts = []
   
-  // Show different header based on type
-  let header = '🚨 HIGH URGENCY TICKET'
+  // Header based on type
   if (sentiment.isAngry) {
-    header = '🔥 ANGRY CUSTOMER - HIGH URGENCY'
-  } else if (sentiment.categories.includes('subscription-related')) {
-    header = '💰 SUBSCRIPTION ISSUE - HIGH URGENCY'
+    parts.push(`⚠️ ANGRY CUSTOMER DETECTED (Score: ${sentiment.angerScore}/100)`)
+  } else {
+    parts.push(`🚨 HIGH URGENCY CUSTOMER DETECTED (Score: ${sentiment.urgencyScore}/100)`)
   }
   
-  // Detail the urgency reasons
-  if (sentiment.indicators.subscriptionMentions > 0) {
-    triggers.push(`💳 Subscription/billing issue (${sentiment.indicators.subscriptionMentions} mentions)`)
+  // Issue category
+  const categoryMap = {
+    'refund-cancellation': 'Refund/Cancellation Request',
+    'bug-broken': 'Bug/Broken Functionality',
+    'spam': 'Spam',
+    'other': 'Other'
+  }
+  parts.push(`\nCategory: ${categoryMap[sentiment.issueCategory]}`)
+  
+  // Triggers detected section
+  parts.push('\nTriggers Detected:')
+  
+  if (sentiment.indicators.hasProfanity) {
+    parts.push(`- Profanity Detected (${sentiment.indicators.profanityCount} instances)`)
+    sentiment.indicators.profanityFound.forEach(quote => {
+      parts.push(`  ${quote}`)
+    })
   }
   
-  if (sentiment.indicators.urgencyKeywords.length > 0) {
-    triggers.push(`⚡ Urgent keywords: ${sentiment.indicators.urgencyKeywords.join(', ')}`)
-  }
-  
-  // Only show anger indicators if actually angry
-  if (sentiment.isAngry) {
-    if (sentiment.indicators.hasProfanity) {
-      triggers.push(`🤬 Profanity detected (${sentiment.indicators.profanityCount} instances)`)
-      sentiment.indicators.profanityFound.forEach(quote => {
-        triggers.push(`  └─ ${quote}`)
+  if (sentiment.indicators.hasNegativeWords) {
+    const total = sentiment.indicators.negativeWordCount + sentiment.indicators.negativeContextCount
+    parts.push(`- Negative Sentiment Words Detected (${total} instances)`)
+    
+    // Show negative context quotes if criticizing service
+    if (sentiment.indicators.negativeContextCount > 0) {
+      sentiment.indicators.negativeContextFound.forEach(quote => {
+        parts.push(`  ${quote}`)
       })
     }
     
-    if (sentiment.indicators.hasNegativeWords) {
-      const total = sentiment.indicators.negativeWordCount + sentiment.indicators.negativeContextCount
-      triggers.push(`😤 Negative language (${total} instances)`)
-      if (sentiment.indicators.negativeContextCount > 0) {
-        triggers.push(`  └─ Criticizing service/app/company:`)
-        sentiment.indicators.negativeContextFound.forEach(quote => {
-          triggers.push(`     • ${quote}`)
-        })
-      }
-    }
-    
-    if (sentiment.indicators.capsRatio > 0.3) {
-      triggers.push(`📢 High capitalization (${Math.round(sentiment.indicators.capsRatio * 100)}% caps)`)
+    // Show other negative words if not too many
+    if (sentiment.indicators.negativeWordCount > 0 && sentiment.indicators.negativeWordsFound.length <= 3) {
+      sentiment.indicators.negativeWordsFound.forEach(quote => {
+        parts.push(`  ${quote}`)
+      })
     }
   }
   
-  // Note if they're being polite despite issues
-  if (sentiment.indicators.isPoliteRequest) {
-    triggers.push('🤝 Customer is being polite')
+  if (sentiment.indicators.urgencyKeywords.length > 0) {
+    parts.push(`- Urgency Keywords: ${sentiment.indicators.urgencyKeywords.join(', ')}`)
   }
   
-  const issue = conversation.preview || conversation.subject || 'No preview available'
+  if (sentiment.indicators.subscriptionMentions > 0) {
+    parts.push(`- Subscription/Billing Issues Mentioned`)
+  }
   
-  return `${header}
-
-📋 Issue Summary:
-${issue}
-
-📊 Analysis:
-- Urgency Score: ${sentiment.urgencyScore}/100
-- Anger Score: ${sentiment.angerScore}/100
-- Categories: ${categories}
-
-🎯 Reasons for Priority:
-${triggers.join('\n')}
-
-⏰ Tagged by automation at ${new Date().toLocaleString()}
-
-Please prioritize this customer for immediate response.`
+  if (sentiment.indicators.capsRatio > 0.3) {
+    parts.push(`- High Capitalization (${Math.round(sentiment.indicators.capsRatio * 100)}%)`)
+  }
+  
+  // Suggested response placeholder
+  parts.push('\nSuggested Response:')
+  parts.push('This functionality is not yet deployed.')
+  
+  return parts.join('\n')
 }
 
 interface UrgentTicket {
@@ -146,15 +142,15 @@ export default async function handler(
       // Analyze sentiment
       const sentiment = analyzer.analyze(textToAnalyze)
       
-      // Process if high urgency OR angry
-      if (sentiment.isHighUrgency || sentiment.isAngry) {
+      // Process if high urgency OR angry OR spam
+      if (sentiment.isHighUrgency || sentiment.isAngry || sentiment.isSpam) {
         let tagged = false
         let isEscalation = false
         
         try {
           // Handle tags based on new vs escalation
-          if (!hasUrgencyTag) {
-            // New high urgency ticket
+          if (!hasUrgencyTag && !sentiment.isSpam) {
+            // New high urgency ticket (not spam)
             await client.addTag(conversation.id, 'high-urgency')
             await client.addTag(conversation.id, `urgency-score-${sentiment.urgencyScore}`)
             
@@ -169,6 +165,12 @@ export default async function handler(
             tagged = true
             taggedCount++
             console.log(`Tagged NEW urgent ticket ${conversation.id} - Urgency: ${sentiment.urgencyScore}, Anger: ${sentiment.angerScore}`)
+          } else if (sentiment.isSpam && !existingTags.includes('spam')) {
+            // Tag as spam
+            await client.addTag(conversation.id, 'spam')
+            tagged = true
+            taggedCount++
+            console.log(`Tagged SPAM ${conversation.id}`)
           } else if (sentiment.urgencyScore > previousUrgencyScore || sentiment.angerScore > previousAngerScore) {
             // Escalation detected
             isEscalation = true
@@ -234,6 +236,7 @@ ${createAnalysisNote(sentiment, conversation)}`
     const newUrgentCount = urgentTickets.filter(t => t.tagged && !t.isEscalation).length
     const angryCount = urgentTickets.filter(t => t.angerScore >= 40).length
     const politeUrgentCount = urgentTickets.filter(t => t.categories.includes('polite') && t.categories.includes('urgent')).length
+    const spamCount = urgentTickets.filter(t => t.categories.includes('spam')).length
     
     res.status(200).json({
       success: true,
@@ -243,9 +246,10 @@ ${createAnalysisNote(sentiment, conversation)}`
       escalationCount,
       angryCount,
       politeUrgentCount,
+      spamCount,
       taggedCount,
       urgentTickets: urgentTickets.slice(0, 10), // Top 10
-      message: `Tagged ${newUrgentCount} new urgent tickets (${angryCount} angry, ${politeUrgentCount} polite), ${escalationCount} escalations`,
+      message: `Tagged ${newUrgentCount} urgent, ${spamCount} spam, ${escalationCount} escalations`,
       timestamp: new Date().toISOString()
     })
     

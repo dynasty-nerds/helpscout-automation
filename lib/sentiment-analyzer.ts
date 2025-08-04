@@ -3,6 +3,7 @@ interface SentimentResult {
   urgencyScore: number; // 0-100, based on urgency keywords, subscription issues
   isAngry: boolean;
   isHighUrgency: boolean;
+  isSpam: boolean;
   indicators: {
     hasProfanity: boolean;
     profanityCount: number;
@@ -16,8 +17,10 @@ interface SentimentResult {
     urgencyKeywords: string[];
     subscriptionMentions: number; // refunds, cancellations, billing issues
     isPoliteRequest: boolean; // uses please, thank you, etc.
+    spamIndicatorCount: number;
   };
-  categories: string[]; // ['angry', 'subscription-related', 'urgent', 'polite']
+  categories: string[]; // ['angry', 'subscription-related', 'urgent', 'polite', 'spam']
+  issueCategory: 'refund-cancellation' | 'bug-broken' | 'spam' | 'other';
 }
 
 export class SentimentAnalyzer {
@@ -70,6 +73,14 @@ export class SentimentAnalyzer {
     'please', 'thank you', 'thanks', 'appreciate', 'kindly', 'would you',
     'could you', 'if possible', 'when you get a chance', 'sorry'
   ];
+  
+  private spamIndicators = [
+    'guest post', 'sponsored post', 'article contribution', 'posting an article',
+    'post my article', 'dofollow', 'backlink', 'link building', 'seo',
+    'editorial team', 'advertising cost', 'article proposal', 'tell me the price',
+    'what is the cost', 'interested in posting', 'accept guest post',
+    'quality content', 'engaging articles', 'trusted source'
+  ];
 
   analyze(text: string): SentimentResult {
     const lowerText = text.toLowerCase();
@@ -108,6 +119,12 @@ export class SentimentAnalyzer {
     const isPoliteRequest = this.politeWords.some(word =>
       lowerText.includes(word)
     );
+    
+    // Check for spam
+    const spamCount = this.spamIndicators.filter(indicator =>
+      lowerText.includes(indicator)
+    ).length;
+    const isSpam = spamCount >= 2 || lowerText.includes('guest post') || lowerText.includes('sponsored post');
     
     // Count profanity occurrences
     const profanityCount = this.profanityWords.filter(word =>
@@ -203,16 +220,31 @@ export class SentimentAnalyzer {
     
     // Determine categories
     const categories: string[] = [];
+    if (isSpam) categories.push('spam');
     if (angerScore >= 40) categories.push('angry');
     if (subscriptionMentions > 0) categories.push('subscription-related');
     if (urgencyScore >= 50) categories.push('urgent');
     if (isPoliteRequest) categories.push('polite');
+    
+    // Determine issue category
+    let issueCategory: 'refund-cancellation' | 'bug-broken' | 'spam' | 'other' = 'other';
+    if (isSpam) {
+      issueCategory = 'spam';
+    } else if (subscriptionMentions > 0 || lowerText.includes('refund') || lowerText.includes('cancel') || 
+               lowerText.includes('billing') || lowerText.includes('charged')) {
+      issueCategory = 'refund-cancellation';
+    } else if (lowerText.includes('not working') || lowerText.includes('broken') || lowerText.includes('bug') ||
+               lowerText.includes('error') || lowerText.includes('issue') || lowerText.includes('problem') ||
+               lowerText.includes('doesn\'t work') || lowerText.includes('cant ') || lowerText.includes('can\'t ')) {
+      issueCategory = 'bug-broken';
+    }
     
     return {
       angerScore,
       urgencyScore,
       isAngry: angerScore >= 40,
       isHighUrgency: urgencyScore >= 50,
+      isSpam,
       indicators: {
         hasProfanity,
         profanityCount,
@@ -225,9 +257,11 @@ export class SentimentAnalyzer {
         capsRatio,
         urgencyKeywords: foundUrgencyKeywords,
         subscriptionMentions,
-        isPoliteRequest
+        isPoliteRequest,
+        spamIndicatorCount: spamCount
       },
-      categories
+      categories,
+      issueCategory
     };
   }
   
