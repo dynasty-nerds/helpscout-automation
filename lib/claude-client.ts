@@ -44,7 +44,7 @@ export class ClaudeClient {
 CRITICAL INSTRUCTIONS:
 1. Start with "${greeting}" to address the customer directly
 2. Generate the response AS IF the agent is speaking - they can take actions like processing refunds
-3. Use **bold text** for any actions the agent needs to take (e.g., **I've processed your refund**)
+3. Do NOT use bold text or markdown formatting - HelpScout notes don't support it
 4. Be VERY friendly, warm, and conversational in tone
 5. Base responses ONLY on the provided documentation - never guess or hallucinate
 6. If documentation is missing, note this in the reasoning/notes section, not in the response
@@ -54,7 +54,7 @@ CRITICAL INSTRUCTIONS:
 
 IMPORTANT POLICIES:
 - Agents can process refunds, subscription changes, and account modifications
-- If suggesting a refund or account change, write it as done: **I've processed your refund**
+- If suggesting a refund or account change, write it as done: "I've processed your refund"
 
 DOCUMENTATION CONTEXT:
 ${docsContext}
@@ -73,7 +73,7 @@ Please respond with a JSON object in this exact format:
   "referencedUrls": ["actual helpscout doc URLs for agent reference"],
   "reasoning": "Why this response addresses their issue...",
   "responseType": "billing|technical|account|general",
-  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent"
+  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Format as: Documentation gaps: 1) First gap 2) Second gap 3) Third gap. Consider creating documentation about these topics to prevent similar issues."
 }`
 
     try {

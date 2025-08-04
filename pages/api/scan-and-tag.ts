@@ -219,8 +219,8 @@ async function createAnalysisNote(
       )
       console.log(`AI response generated for conversation ${conversation.id}: ${aiResponse.suggestedResponse.substring(0, 50)}...`)
       
-      parts.push(`${aiResponse.suggestedResponse}`)
-      parts.push(`\n[AI Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
+      parts.push(`[AI Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
+      parts.push(`\n${aiResponse.suggestedResponse}`)
       
       if (aiResponse.referencedDocs.length > 0) {
         parts.push(`\n📚 Referenced Documentation:`)
@@ -236,7 +236,11 @@ async function createAnalysisNote(
       
       if (aiResponse.notesForAgent) {
         parts.push(`\n📝 Notes for Support Team:`)
-        parts.push(aiResponse.notesForAgent)
+        // Split notes by numbered items and add line breaks
+        const noteLines = aiResponse.notesForAgent.split(/(?=\d+\))/)
+          .filter(line => line.trim())
+          .map(line => line.trim())
+        parts.push(noteLines.join('\n\n'))
       }
       
       if (aiResponse.usageString) {
