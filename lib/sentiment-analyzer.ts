@@ -218,15 +218,21 @@ export class SentimentAnalyzer {
       urgencyScore += 30;
     }
     
-    // Check for words in ALL CAPS (excluding common abbreviations)
-    const allCapsWords = text.match(/\b[A-Z]{2,}\b/g) || [];
-    const nonAbbrevCaps = allCapsWords.filter(word => 
-      !['GM', 'API', 'FAQ', 'URL', 'ID', 'UI', 'SEO', 'CEO', 'USA', 'UK', 'MFL', 'NFL'].includes(word) &&
-      word.length > 2
-    );
-    if (nonAbbrevCaps.length > 0) {
-      angerScore += 10 * nonAbbrevCaps.length;
-      urgencyScore += 10 * nonAbbrevCaps.length;
+    // Check for common words in ALL CAPS that indicate frustration
+    const commonWords = ['ANY', 'ALL', 'NOT', 'NO', 'NEVER', 'ALWAYS', 'STILL', 
+                        'NOW', 'TODAY', 'ASAP', 'NEED', 'MUST', 'CAN\'T', 'CANT',
+                        'WON\'T', 'WONT', 'NOTHING', 'NOBODY', 'PLEASE', 'HELP'];
+    
+    let capsCommonWords = 0;
+    commonWords.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'g');
+      const matches = text.match(regex) || [];
+      capsCommonWords += matches.length;
+    });
+    
+    if (capsCommonWords > 0) {
+      angerScore += 10 * capsCommonWords;
+      urgencyScore += 10 * capsCommonWords;
     }
     
     // If angry, it's also urgent
