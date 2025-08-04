@@ -50,6 +50,25 @@ export class HelpScoutClient {
     return response.data
   }
 
+  async getClosedConversations() {
+    await this.authenticate()
+
+    const response = await axios.get(`${this.baseURL}/conversations`, {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+      },
+      params: {
+        status: 'closed',
+        embed: 'threads',
+        sortField: 'closedAt',
+        sortOrder: 'desc',
+        page: 1
+      },
+    })
+
+    return response.data
+  }
+
   async getConversationThreads(conversationId: number) {
     await this.authenticate()
 

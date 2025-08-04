@@ -159,8 +159,15 @@ export default async function handler(
     const urgentTickets: UrgentTicket[] = []
     let taggedCount = 0
     
+    // TESTING: Only process specific conversations
+    const testConversationIds = [3014322028, 3023809608];
+    
     // Analyze each conversation
     for (const conversation of conversations) {
+      // Skip all conversations except our test ones
+      if (!testConversationIds.includes(conversation.id)) {
+        continue;
+      }
       // Check existing tags - ensure they are strings
       const rawTags = conversation.tags || []
       const existingTags = rawTags.map((tag: any) => String(tag))
