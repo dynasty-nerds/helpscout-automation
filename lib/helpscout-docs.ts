@@ -50,15 +50,17 @@ export class HelpScoutDocsClient {
 
   async getCollections(): Promise<DocsCollection[]> {
     const response = await this.makeRequest('/collections')
-    console.log('Collections response structure:', Object.keys(response))
     
     // HelpScout Docs API v1 returns collections directly as an array
     if (Array.isArray(response)) {
+      console.log(`Found ${response.length} documentation collections:`, response.map((c: any) => c.name || c.title).join(', '))
       return response
     }
     
     // Try other possible response structures
-    return response.collections?.items || response.collections || response.items || []
+    const collections = response.collections?.items || response.collections || response.items || []
+    console.log(`Found ${collections.length} documentation collections:`, collections.map((c: any) => c.name || c.title).join(', '))
+    return collections
   }
 
   async getArticles(collectionId?: string): Promise<DocsArticle[]> {
@@ -85,6 +87,7 @@ export class HelpScoutDocsClient {
             sort: 'updatedAt'
           })
           const articlesList = data.articles?.items || data.articles || data.items || []
+          console.log(`Collection "${collection.name || collection.title}" (${collection.id}): ${articlesList.length} articles`)
           const collectionArticles = articlesList.map((article: any) => ({
             ...article,
             collectionId: collection.id
@@ -203,11 +206,11 @@ export class HelpScoutDocsClient {
     const now = Date.now()
     
     if (now - this.articlesCache.lastFetch > this.cacheTimeout || this.articlesCache.articles.length === 0) {
-      console.log('Refreshing articles cache...')
+      console.log('Refreshing articles cache from all collections...')
       try {
         this.articlesCache.articles = await this.getArticles()
         this.articlesCache.lastFetch = now
-        console.log(`Cached ${this.articlesCache.articles.length} articles`)
+        console.log(`Successfully cached ${this.articlesCache.articles.length} total articles from all collections`)
       } catch (error) {
         console.error('Failed to refresh articles cache:', error)
         // Return stale cache if available
