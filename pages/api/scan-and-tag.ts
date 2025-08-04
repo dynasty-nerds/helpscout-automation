@@ -549,34 +549,34 @@ export default async function handler(
       } catch (error) {
         console.error(`Failed to process conversation ${conversation.id}:`, error)
       }
-        
-        const wouldTag: string[] = []
-        if (sentiment.isSpam && !existingTags.includes('spam')) {
-          wouldTag.push('spam')
-        } else if (!sentiment.isSpam) {
-          if (sentiment.isAngry) {
-            if (!hasAngryTag) wouldTag.push('angry-customer')
-            if (!hasUrgencyTag) wouldTag.push('high-urgency')
-          } else if (sentiment.isHighUrgency && !hasUrgencyTag) {
-            wouldTag.push('high-urgency')
-          }
+      
+      // Track ticket for reporting
+      const wouldTag: string[] = []
+      if (sentiment.isSpam && !existingTags.includes('spam')) {
+        wouldTag.push('spam')
+      } else if (!sentiment.isSpam) {
+        if (sentiment.isAngry) {
+          if (!hasAngryTag) wouldTag.push('angry-customer')
+          if (!hasUrgencyTag) wouldTag.push('high-urgency')
+        } else if (sentiment.isHighUrgency && !hasUrgencyTag) {
+          wouldTag.push('high-urgency')
         }
-        
-        urgentTickets.push({
-          conversationId: conversation.id,
-          customerEmail: conversation.primaryCustomer?.email || 'Unknown',
-          subject: conversation.subject || 'No subject',
-          preview: conversation.preview || '',
-          urgencyScore: sentiment.urgencyScore,
-          angerScore: sentiment.angerScore,
-          categories: sentiment.categories,
-          indicators: sentiment.indicators,
-          createdAt: conversation.createdAt,
-          tagged,
-          wouldTag: dryRun ? wouldTag : undefined,
-          wouldAddNote: dryRun ? wouldTag.length > 0 : undefined
-        })
       }
+      
+      urgentTickets.push({
+        conversationId: conversation.id,
+        customerEmail: conversation.primaryCustomer?.email || 'Unknown',
+        subject: conversation.subject || 'No subject',
+        preview: conversation.preview || '',
+        urgencyScore: sentiment.urgencyScore,
+        angerScore: sentiment.angerScore,
+        categories: sentiment.categories,
+        indicators: sentiment.indicators,
+        createdAt: conversation.createdAt,
+        tagged,
+        wouldTag: dryRun ? wouldTag : undefined,
+        wouldAddNote: dryRun ? wouldTag.length > 0 : undefined
+      })
     }
     
     // Sort by urgency score first, then anger score
