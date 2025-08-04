@@ -348,9 +348,15 @@ async function createAnalysisNote(
       
       // Use AI sentiment scores if available
       if (aiResponse.angerScore !== undefined && aiResponse.urgencyScore !== undefined) {
-        console.log(`Using AI sentiment scores - Anger: ${aiResponse.angerScore}, Urgency: ${aiResponse.urgencyScore}`)
-        console.log(`Keyword sentiment scores - Anger: ${keywordSentiment.angerScore}, Urgency: ${keywordSentiment.urgencyScore}`)
-        console.log(`AI vs Keyword difference - Anger: ${Math.abs((aiResponse.angerScore || 0) - keywordSentiment.angerScore)}, Urgency: ${Math.abs((aiResponse.urgencyScore || 0) - keywordSentiment.urgencyScore)}`)
+        console.log(`\n🤖 === AI SENTIMENT ANALYSIS COMPARISON ===`)
+        console.log(`📊 AI Sentiment Scores    - Anger: ${aiResponse.angerScore}/100, Urgency: ${aiResponse.urgencyScore}/100`)
+        console.log(`🔍 Keyword Scores        - Anger: ${keywordSentiment.angerScore}/100, Urgency: ${keywordSentiment.urgencyScore}/100`)
+        console.log(`📈 Difference            - Anger: ${(aiResponse.angerScore || 0) > keywordSentiment.angerScore ? '+' : ''}${(aiResponse.angerScore || 0) - keywordSentiment.angerScore}, Urgency: ${(aiResponse.urgencyScore || 0) > keywordSentiment.urgencyScore ? '+' : ''}${(aiResponse.urgencyScore || 0) - keywordSentiment.urgencyScore}`)
+        console.log(`🎯 AI Triggers:`)
+        console.log(`   - Anger: ${aiResponse.angerTriggers?.join(', ') || 'none'}`)
+        console.log(`   - Urgency: ${aiResponse.urgencyTriggers?.join(', ') || 'none'}`)
+        console.log(`💡 AI Reasoning: ${aiResponse.sentimentReasoning || 'No reasoning provided'}`)
+        console.log(`=====================================\n`)
         
         // Override the header with AI sentiment scores
         const aiSentiment = {
@@ -523,8 +529,9 @@ export default async function handler(
       console.error('AI integration not configured - using fallback responses:', error.message)
     }
     
-    // Check for dry-run mode
+    // Check for dry-run mode and limit
     const dryRun = req.query.dryRun === 'true'
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
     
     // Get all active conversations
     const conversationsData = await client.getActiveConversations()
@@ -532,15 +539,22 @@ export default async function handler(
     
     console.log(`Found ${conversations.length} active conversations`)
     
+    // Apply limit if specified
+    const conversationsToProcess = limit ? conversations.slice(0, limit) : conversations
+    
     if (dryRun) {
       console.log('DRY RUN MODE - No tags or notes will be added')
+    }
+    
+    if (limit) {
+      console.log(`LIMIT MODE - Processing only first ${limit} tickets out of ${conversations.length} total`)
     }
     
     const urgentTickets: UrgentTicket[] = []
     let taggedCount = 0
     
     // Analyze each conversation
-    for (const conversation of conversations) {
+    for (const conversation of conversationsToProcess) {
       // Check existing tags - handle both string and object formats
       const rawTags = conversation.tags || []
       const existingTagNames: string[] = []
@@ -843,9 +857,20 @@ export default async function handler(
     const politeUrgentCount = urgentTickets.filter(t => t.categories.includes('polite') && t.categories.includes('urgent')).length
     const spamCount = urgentTickets.filter(t => t.categories.includes('spam')).length
     
+    // Log summary if limit was used
+    if (limit) {
+      console.log(`\n📊 === TEST RUN SUMMARY ===`)
+      console.log(`Processed ${conversationsToProcess.length} tickets (limit: ${limit})`)
+      console.log(`Total tickets available: ${conversations.length}`)
+      console.log(`Dry run mode: ${dryRun}`)
+      console.log(`AI sentiment analysis: ENABLED`)
+      console.log(`=======================\n`)
+    }
+    
     res.status(200).json({
       success: true,
-      scannedCount: conversations.length,
+      scannedCount: conversationsToProcess.length,
+      totalAvailable: conversations.length,
       urgentCount: urgentTickets.length,
       newUrgentCount,
       escalationCount,
@@ -858,7 +883,8 @@ export default async function handler(
         ? `DRY RUN: Would tag ${newUrgentCount} urgent, ${spamCount} spam`
         : `Tagged ${newUrgentCount} urgent, ${spamCount} spam, ${escalationCount} escalations`,
       timestamp: new Date().toISOString(),
-      dryRun
+      dryRun,
+      limitApplied: limit || null
     })
     
   } catch (error) {
