@@ -269,8 +269,8 @@ export default async function handler(
       claudeClient = new ClaudeClient()
       docsClient = new HelpScoutDocsClient()
       console.log('AI response generation enabled')
-    } catch (error) {
-      console.log('AI integration not configured - using fallback responses')
+    } catch (error: any) {
+      console.error('AI integration not configured - using fallback responses:', error.message)
     }
     
     // Check for dry-run mode
