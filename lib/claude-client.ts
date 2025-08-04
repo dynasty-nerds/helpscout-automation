@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { UsageTracker } from './usage-tracker'
 
 interface ClaudeResponse {
   suggestedResponse: string
@@ -8,17 +9,20 @@ interface ClaudeResponse {
   reasoning: string
   responseType: string
   notesForAgent?: string
+  usageString?: string
 }
 
 export class ClaudeClient {
   private apiKey: string
   private baseURL = 'https://api.anthropic.com/v1/messages'
+  private usageTracker: UsageTracker
 
   constructor() {
     this.apiKey = process.env.CLAUDE_API_KEY || ''
     if (!this.apiKey) {
       throw new Error('CLAUDE_API_KEY environment variable is required')
     }
+    this.usageTracker = new UsageTracker()
   }
 
   async generateResponse(
@@ -102,10 +106,40 @@ Please respond with a JSON object in this exact format:
         throw new Error('No JSON found in Claude response')
       }
 
-      const result = JSON.parse(jsonMatch[0])
+      // Clean the JSON string to handle common issues
+      let jsonString = jsonMatch[0]
       
-      // Log usage for cost tracking
-      console.log(`Claude API usage: ${response.data.usage?.input_tokens || 0} input tokens, ${response.data.usage?.output_tokens || 0} output tokens`)
+      // Log the raw JSON for debugging
+      console.log('Raw Claude JSON response (first 500 chars):', jsonString.substring(0, 500))
+      
+      let result
+      try {
+        result = JSON.parse(jsonString)
+      } catch (parseError: any) {
+        console.error('JSON parse error:', parseError.message)
+        console.error('Full JSON string:', jsonString)
+        
+        // Try to fix common JSON issues
+        // Replace actual newlines in strings with \n
+        jsonString = jsonString.replace(/\n(?=(?:[^"]*"[^"]*")*[^"]*$)/g, '\\n')
+          .replace(/\r(?=(?:[^"]*"[^"]*")*[^"]*$)/g, '\\r')
+          .replace(/\t(?=(?:[^"]*"[^"]*")*[^"]*$)/g, '\\t')
+        
+        try {
+          result = JSON.parse(jsonString)
+        } catch (secondError) {
+          console.error('Failed to parse even after cleanup:', secondError)
+          throw new Error('Invalid JSON response from Claude')
+        }
+      }
+      
+      // Track usage
+      const inputTokens = response.data.usage?.input_tokens || 0
+      const outputTokens = response.data.usage?.output_tokens || 0
+      console.log(`Claude API usage: ${inputTokens} input tokens, ${outputTokens} output tokens`)
+      
+      const usage = await this.usageTracker.trackUsage(inputTokens, outputTokens)
+      const usageString = this.usageTracker.formatUsageString(usage)
       
       return {
         suggestedResponse: result.suggestedResponse,
@@ -114,7 +148,8 @@ Please respond with a JSON object in this exact format:
         referencedUrls: result.referencedUrls || [],
         reasoning: result.reasoning,
         responseType: result.responseType,
-        notesForAgent: result.notesForAgent || ''
+        notesForAgent: result.notesForAgent || '',
+        usageString
       }
 
     } catch (error: any) {

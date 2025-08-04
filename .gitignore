@@ -42,3 +42,6 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Usage tracking
+claude-usage.json

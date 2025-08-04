@@ -239,6 +239,10 @@ async function createAnalysisNote(
         parts.push(aiResponse.notesForAgent)
       }
       
+      if (aiResponse.usageString) {
+        parts.push(`\n${aiResponse.usageString}`)
+      }
+      
     } catch (error: any) {
       console.error('Failed to generate AI response:', error.message || error)
       console.error('Full error details:', error)
