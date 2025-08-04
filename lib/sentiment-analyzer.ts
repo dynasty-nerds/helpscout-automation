@@ -36,7 +36,8 @@ export class SentimentAnalyzer {
     'bad', 'poor', 'worst', 'sucks', 'crap', 'stupid', 'dumb',
     'idiotic', 'incompetent', 'unprofessional', 'unacceptable',
     'disappointed', 'frustrating', 'annoying', 'irritating',
-    'sick of', 'tired of', 'fed up', 'enough', 'done with'
+    'sick of', 'tired of', 'fed up', 'enough', 'done with',
+    'fraud', 'scam', 'rip off', 'ripoff', 'cheated', 'stolen'
   ];
   
   private negativeContextPhrases = [
@@ -45,7 +46,10 @@ export class SentimentAnalyzer {
     'bad app', 'terrible app', 'awful app', 'broken app',
     'bad company', 'terrible company', 'worst company',
     'bad support', 'terrible support', 'no support',
-    'bad experience', 'terrible experience', 'awful experience'
+    'bad experience', 'terrible experience', 'awful experience',
+    'extremely poor', 'very unprofessional', 'highly unprofessional',
+    'absolutely ridiculous', 'completely ridiculous', 'totally ridiculous',
+    'fraud', 'fraudulent', 'scam', 'scammer', 'rip off', 'ripoff'
   ];
 
   private urgencyKeywords = [
