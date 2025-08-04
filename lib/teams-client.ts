@@ -18,46 +18,17 @@ export class TeamsClient {
   }
 
   async sendUrgentTicketAlert(notification: TeamsNotification): Promise<void> {
-    const card = {
-      type: 'message',
-      attachments: [{
-        contentType: 'application/vnd.microsoft.card.adaptive',
-        content: {
-          type: 'AdaptiveCard',
-          version: '1.3',
-          body: [
-            {
-              type: 'TextBlock',
-              text: `🚨 URGENT TICKET: ${notification.subject}`,
-              weight: 'Bolder',
-              size: 'Medium',
-              color: 'Attention'
-            },
-            {
-              type: 'TextBlock',
-              text: `Customer: ${notification.customerEmail}`,
-              weight: 'Bolder'
-            },
-            {
-              type: 'TextBlock',
-              text: notification.noteText,
-              wrap: true,
-              fontType: 'Monospace'
-            }
-          ],
-          actions: [
-            {
-              type: 'Action.OpenUrl',
-              title: 'View in HelpScout',
-              url: `https://secure.helpscout.net/conversation/${notification.conversationId}`
-            }
-          ]
-        }
-      }]
+    // Simple JSON payload for Power Automate workflow
+    const payload = {
+      title: `🚨 URGENT TICKET: ${notification.subject}`,
+      customer: notification.customerEmail,
+      noteText: notification.noteText,
+      ticketUrl: `https://secure.helpscout.net/conversation/${notification.conversationId}`,
+      conversationId: notification.conversationId
     }
 
     try {
-      await axios.post(this.webhookUrl, card, {
+      await axios.post(this.webhookUrl, payload, {
         headers: {
           'Content-Type': 'application/json'
         }
