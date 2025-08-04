@@ -41,9 +41,20 @@ export default async function handler(
     // Add first page conversations
     allConversations.push(...(firstPageData._embedded?.conversations || []))
     
-    // Fetch remaining pages
+    // Fetch remaining pages with rate limiting
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+    let rateLimitDelay = 0
+    
     while (hasMore && page < totalPagesNeeded) {
       page++
+      
+      // Apply rate limit delay if needed
+      if (rateLimitDelay > 0) {
+        console.log(`Rate limited - waiting ${rateLimitDelay}ms before continuing...`)
+        await delay(rateLimitDelay)
+        rateLimitDelay = 0
+      }
+      
       try {
         const conversationsData = await client.getClosedConversations(page)
         const pageConversations = conversationsData._embedded?.conversations || []
@@ -59,9 +70,20 @@ export default async function handler(
         if (page % 10 === 0) {
           console.log(`Progress: ${page}/${totalPagesNeeded} pages, ${allConversations.length} conversations`)
         }
-      } catch (error) {
-        console.error(`Error fetching page ${page}:`, error)
-        break
+        
+        // Add small delay to avoid hitting rate limits (3 requests per second)
+        await delay(350)
+      } catch (error: any) {
+        if (error.response?.status === 429) {
+          // Rate limited - wait and retry
+          const retryAfter = error.response.data?.retry_after || 60
+          rateLimitDelay = (retryAfter + 1) * 1000
+          page-- // Retry this page
+          console.log(`Rate limited at page ${page + 1}, will retry after ${rateLimitDelay}ms`)
+        } else {
+          console.error(`Error fetching page ${page}:`, error.message)
+          break
+        }
       }
     }
     
