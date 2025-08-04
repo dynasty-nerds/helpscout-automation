@@ -208,28 +208,6 @@ export default async function handler(
               // Tag as spam
               await client.addTag(conversation.id, 'spam')
               taggedCount++
-              
-              // Send Teams notification for spam
-              if (teamsClient) {
-                try {
-                  // Determine confidence level
-                  let confidence = 'Low'
-                  if (sentiment.indicators.spamIndicatorCount >= 4) {
-                    confidence = 'High'
-                  } else if (sentiment.indicators.spamIndicatorCount >= 2) {
-                    confidence = 'Medium'
-                  }
-                  
-                  await teamsClient.sendSpamAlert({
-                    conversationId: conversation.id,
-                    customerEmail: conversation.primaryCustomer?.email || 'Unknown',
-                    subject: conversation.subject || 'No subject',
-                    confidence
-                  })
-                } catch (error) {
-                  console.error(`Failed to send Teams spam notification for ${conversation.id}:`, error)
-                }
-              }
             }
             tagged = true
             
@@ -294,24 +272,14 @@ export default async function handler(
               // Send Teams notification for newly tagged urgent/angry tickets
               if (teamsClient) {
                 try {
-                  const triggers = []
-                  if (sentiment.indicators.hasProfanity) triggers.push('Profanity')
-                  if (sentiment.indicators.hasNegativeWords) triggers.push('Negative Language')
-                  if (sentiment.indicators.urgencyKeywords.length > 0) triggers.push('Urgency Keywords')
-                  if (sentiment.indicators.subscriptionMentions > 0) triggers.push('Subscription Issues')
-                  if (sentiment.indicators.capsRatio > 0.3) triggers.push('Excessive Caps')
+                  // Generate the same note text that we add to HelpScout
+                  const noteText = createAnalysisNote(sentiment, conversation)
                   
                   await teamsClient.sendUrgentTicketAlert({
                     conversationId: conversation.id,
+                    noteText: noteText,
                     customerEmail: conversation.primaryCustomer?.email || 'Unknown',
-                    subject: conversation.subject || 'No subject',
-                    preview: conversation.preview || '',
-                    urgencyScore: sentiment.urgencyScore,
-                    angerScore: sentiment.angerScore,
-                    isAngry: sentiment.isAngry,
-                    isHighUrgency: sentiment.isHighUrgency,
-                    triggers,
-                    categories: sentiment.categories
+                    subject: conversation.subject || 'No subject'
                   })
                 } catch (error) {
                   console.error(`Failed to send Teams notification for ${conversation.id}:`, error)
