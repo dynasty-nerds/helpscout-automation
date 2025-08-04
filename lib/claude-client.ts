@@ -125,23 +125,40 @@ Please respond with a JSON object in this exact format:
         console.error('JSON parse error:', parseError.message)
         console.error('Full JSON string:', jsonString)
         
-        // Try to fix common JSON issues - properly escape newlines in quoted strings
-        // First, find all string values and escape newlines within them
-        jsonString = jsonString.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match: string) => {
-          // Replace unescaped newlines, carriage returns, and tabs
-          return match
-            .replace(/\n/g, '\\n')
-            .replace(/\r/g, '\\r')
-            .replace(/\t/g, '\\t')
-            .replace(/\f/g, '\\f')
-            .replace(/\b/g, '\\b')
+        // Try to fix common JSON issues
+        // Replace actual newlines within string values with escaped newlines
+        // This regex finds strings and replaces unescaped newlines inside them
+        let fixedJson = jsonString
+        
+        // First pass: handle obvious newlines in string values
+        fixedJson = fixedJson.replace(/"([^"]*(?:\\"[^"]*)*)"/g, (match) => {
+          // Only process the content inside quotes
+          return match.replace(/([^\\])\n/g, '$1\\n').replace(/^\n/g, '\\n')
         })
         
         try {
-          result = JSON.parse(jsonString)
+          result = JSON.parse(fixedJson)
         } catch (secondError) {
           console.error('Failed to parse even after cleanup:', secondError)
-          throw new Error('Invalid JSON response from Claude')
+          // Try one more time with a simpler approach
+          try {
+            // Extract values manually for the most important fields
+            const suggestedResponse = jsonString.match(/"suggestedResponse":\s*"([^"]*)"/)?.[1] || ''
+            const confidence = parseFloat(jsonString.match(/"confidence":\s*([\d.]+)/)?.[1] || '0.5')
+            const responseType = jsonString.match(/"responseType":\s*"([^"]*)"/)?.[1] || 'general'
+            
+            result = {
+              suggestedResponse: suggestedResponse.replace(/\\n/g, '\n'),
+              confidence,
+              referencedDocs: [],
+              referencedUrls: [],
+              reasoning: 'Fallback parsing due to JSON error',
+              responseType,
+              notesForAgent: ''
+            }
+          } catch (finalError) {
+            throw new Error('Invalid JSON response from Claude')
+          }
         }
       }
       
