@@ -154,6 +154,7 @@ Please respond with a JSON object in this exact format:
 
     } catch (error: any) {
       console.error('Claude API error:', error.response?.data || error.message)
+      console.error('Full error:', JSON.stringify(error.response?.data || error, null, 2))
       
       // Fallback response if Claude fails
       return {

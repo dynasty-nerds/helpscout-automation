@@ -210,6 +210,8 @@ async function createAnalysisNote(
       
       // Generate AI response
       console.log(`Calling Claude API for conversation ${conversation.id}`)
+      console.log(`Customer message preview: ${customerMessage.substring(0, 100)}...`)
+      console.log(`Found ${relevantDocs.length} relevant docs`)
       const aiResponse = await claudeClient.generateResponse(
         customerMessage,
         conversationHistory,
@@ -242,7 +244,7 @@ async function createAnalysisNote(
         parts.push(noteLines.join('\n\n'))
       }
       
-      if (aiResponse.usageString) {
+      if (aiResponse.usageString && !aiResponse.usageString.includes('API call failed')) {
         parts.push(`\n${aiResponse.usageString}`)
       }
       
