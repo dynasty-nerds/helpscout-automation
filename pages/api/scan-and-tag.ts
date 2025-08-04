@@ -852,7 +852,8 @@ export default async function handler(
               skipReason = 'First AI analysis'
             } else if (hasNewCustomerMessage(allThreads, previousSentiment.noteCreatedAt)) {
               // Has new customer message - check sentiment change
-              if (shouldCreateNewNote(sentiment, previousSentiment)) {
+              // For now, always process if there's a new message - we'll check escalation after AI analysis
+              if (true) { // TODO: Move escalation check after AI analysis
                 shouldProcess = true
                 skipReason = 'Sentiment escalation detected'
               } else {
@@ -877,14 +878,14 @@ export default async function handler(
                 console.log(`Processing ${conversation.id}: ${skipReason}`)
               }
               // Generate AI response and add note for ALL non-spam tickets
-              const analysisResult = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient, previousSentiment)
+              const analysisResult = await createAnalysisNote(keywordSentiment, conversation, claudeClient, docsClient, previousSentiment)
               
               // Use AI sentiment if available for tagging
-              let finalSentiment = sentiment
+              let finalSentiment = keywordSentiment
               if (analysisResult.aiSentiment) {
                 console.log(`Using AI sentiment for tagging - Anger: ${analysisResult.aiSentiment.angerScore}, Urgency: ${analysisResult.aiSentiment.urgencyScore}`)
                 finalSentiment = {
-                  ...sentiment,
+                  ...keywordSentiment,
                   ...analysisResult.aiSentiment
                 }
                 
