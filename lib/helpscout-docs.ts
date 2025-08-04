@@ -49,8 +49,16 @@ export class HelpScoutDocsClient {
   }
 
   async getCollections(): Promise<DocsCollection[]> {
-    const data = await this.makeRequest('/collections')
-    return data.collections || []
+    const response = await this.makeRequest('/collections')
+    console.log('Collections response structure:', Object.keys(response))
+    
+    // HelpScout Docs API v1 returns collections directly as an array
+    if (Array.isArray(response)) {
+      return response
+    }
+    
+    // Try other possible response structures
+    return response.collections?.items || response.collections || response.items || []
   }
 
   async getArticles(collectionId?: string): Promise<DocsArticle[]> {
@@ -62,18 +70,22 @@ export class HelpScoutDocsClient {
         status: 'published',
         sort: 'updated'
       })
-      articles = data.articles || []
+      articles = data.articles?.items || data.articles || data.items || []
     } else {
       // Get all collections and their articles
       const collections = await this.getCollections()
       
-      for (const collection of collections) {
+      // Ensure collections is an array
+      const collectionsArray = Array.isArray(collections) ? collections : []
+      
+      for (const collection of collectionsArray) {
         try {
           const data = await this.makeRequest(`/collections/${collection.id}/articles`, {
             status: 'published',
             sort: 'updated'
           })
-          const collectionArticles = (data.articles || []).map((article: any) => ({
+          const articlesList = data.articles?.items || data.articles || data.items || []
+          const collectionArticles = articlesList.map((article: any) => ({
             ...article,
             collectionId: collection.id
           }))
@@ -110,7 +122,7 @@ export class HelpScoutDocsClient {
       }
 
       const data = await this.makeRequest('/search/articles', params)
-      return data.articles || []
+      return data.articles?.items || data.articles || data.items || []
     } catch (error) {
       console.error(`Search failed for query "${query}":`, error)
       return []
