@@ -399,12 +399,13 @@ export default async function handler(
               // Send Teams notification for newly tagged urgent/angry tickets
               if (teamsClient) {
                 try {
-                  // Generate the same note text that we add to HelpScout
-                  const noteText = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
+                  // For Teams notifications, just send basic info without AI generation
+                  // The actual AI response will be generated when adding the note
+                  const basicNoteText = `${sentiment.isAngry ? '😡 ANGRY' : '❗ HIGH URGENCY'} - Customer needs immediate attention`
                   
                   await teamsClient.sendUrgentTicketAlert({
                     conversationId: conversation.id,
-                    noteText: noteText,
+                    noteText: basicNoteText,
                     customerEmail: conversation.primaryCustomer?.email || 'Unknown',
                     subject: conversation.subject || 'No subject'
                   })
@@ -418,6 +419,7 @@ export default async function handler(
           // ALWAYS check for notes on angry/urgent tickets, regardless of tagging
           if (!sentiment.isSpam && (sentiment.isAngry || sentiment.isHighUrgency)) {
             try {
+              // FIRST check if note already exists to avoid wasting Claude API credits
               const threadsData = await client.getConversationThreads(conversation.id)
               const existingNotes = threadsData._embedded?.threads?.filter(
                 (thread: any) => thread.type === 'note'
@@ -428,7 +430,10 @@ export default async function handler(
                 note.body?.includes('HIGH URGENCY')
               )
               
-              if (!hasExistingNote) {
+              if (hasExistingNote) {
+                console.log(`Skipped note for ${conversation.id} - already has automated note`)
+              } else {
+                // Only call Claude API if we're actually going to add a note
                 const noteText = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
                 if (dryRun) {
                   console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
@@ -437,16 +442,11 @@ export default async function handler(
                   await client.addNote(conversation.id, noteText)
                   console.log(`Successfully added note to ticket ${conversation.id}`)
                 }
-              } else {
-                console.log(`Skipped note for ${conversation.id} - already has automated note`)
               }
             } catch (error) {
               console.error(`Error checking/adding note for ${conversation.id}:`, error)
-              // If we can't check, add the note anyway to ensure it's there
-              const noteText = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
-              if (!dryRun) {
-                await client.addNote(conversation.id, noteText)
-              }
+              // If we can't check threads, skip to avoid wasting credits
+              console.log(`Skipping ${conversation.id} due to error checking threads`)
             }
           } else if (sentiment.isSpam && !existingTags.includes('spam')) {
             // This block is now redundant - remove it
