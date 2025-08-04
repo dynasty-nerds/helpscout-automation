@@ -219,9 +219,25 @@ export class SentimentAnalyzer {
     // Calculate URGENCY score (subscription issues, urgency keywords, multiple attempts)
     let urgencyScore = 0;
     
-    // Subscription/billing issues are always urgent
-    if (subscriptionMentions > 0) {
+    // Check for explicit refund/cancellation demands with urgency keywords
+    const isUrgentRefundDemand = subscriptionMentions > 0 && (
+      foundUrgencyKeywords.length > 0 || 
+      lowerText.includes('refund now') || 
+      lowerText.includes('refund immediately') ||
+      lowerText.includes('cancel now') ||
+      lowerText.includes('cancel immediately') ||
+      lowerText.includes('money back now') ||
+      lowerText.includes('charge back') ||
+      lowerText.includes('chargeback') ||
+      angerScore >= 40 // Angry customers with billing issues are urgent
+    );
+    
+    // Only make subscription issues urgent if they're demanding immediate action or are angry
+    if (isUrgentRefundDemand) {
       urgencyScore += 40 + (subscriptionMentions * 10);
+    } else if (subscriptionMentions > 0) {
+      // Regular subscription mentions get lower score
+      urgencyScore += 20;
     }
     
     // Urgency keywords
@@ -266,7 +282,7 @@ export class SentimentAnalyzer {
     if (isSpam) categories.push('spam');
     if (angerScore >= 40) categories.push('angry');
     if (subscriptionMentions > 0) categories.push('subscription-related');
-    if (urgencyScore >= 50) categories.push('urgent');
+    if (urgencyScore >= 60) categories.push('urgent'); // Updated to match new threshold
     if (isPoliteRequest) categories.push('polite');
     
     // Determine issue category
@@ -286,7 +302,7 @@ export class SentimentAnalyzer {
       angerScore,
       urgencyScore,
       isAngry: angerScore >= 40,
-      isHighUrgency: urgencyScore >= 50,
+      isHighUrgency: urgencyScore >= 60, // Raised threshold from 50 to 60
       isSpam,
       indicators: {
         hasProfanity,
