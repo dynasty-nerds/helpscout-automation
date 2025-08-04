@@ -2,8 +2,43 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { HelpScoutClient } from '../../lib/helpscout-client'
 import { SentimentAnalyzer } from '../../lib/sentiment-analyzer'
 import { TeamsClient } from '../../lib/teams-client'
+import { ClaudeClient } from '../../lib/claude-client'
+import { HelpScoutDocsClient } from '../../lib/helpscout-docs'
+import fs from 'fs/promises'
+import path from 'path'
 
 import { SentimentResult } from '../../lib/sentiment-analyzer'
+
+async function loadLearningFiles(): Promise<{ learnings: string; gaps: string }> {
+  try {
+    const learningsPath = path.join(process.cwd(), 'claude-learnings.md')
+    const gapsPath = path.join(process.cwd(), 'documentation-gaps.md')
+    
+    let learnings = ''
+    let gaps = ''
+    
+    try {
+      learnings = await fs.readFile(learningsPath, 'utf-8')
+    } catch (error) {
+      // Create empty learnings file if it doesn't exist
+      learnings = '# Claude Learning File\n\nThis file tracks learnings from agent responses to improve future AI suggestions.\n\n## Learnings\n\n'
+      await fs.writeFile(learningsPath, learnings, 'utf-8')
+    }
+    
+    try {
+      gaps = await fs.readFile(gapsPath, 'utf-8')
+    } catch (error) {
+      // Create empty gaps file if it doesn't exist
+      gaps = '# Documentation Gaps\n\nThis file tracks areas where documentation needs improvement.\n\n## Gaps Identified\n\n'
+      await fs.writeFile(gapsPath, gaps, 'utf-8')
+    }
+    
+    return { learnings, gaps }
+  } catch (error) {
+    console.error('Error loading learning files:', error)
+    return { learnings: '', gaps: '' }
+  }
+}
 
 function createSpamNote(sentiment: SentimentResult, text: string): string {
   const reasons = []
@@ -46,7 +81,12 @@ ${reasons.join('\n')}
 Total spam indicators found: ${sentiment.indicators.spamIndicatorCount}`
 }
 
-function createAnalysisNote(sentiment: SentimentResult, conversation: any): string {
+async function createAnalysisNote(
+  sentiment: SentimentResult, 
+  conversation: any, 
+  claudeClient?: ClaudeClient | null,
+  docsClient?: HelpScoutDocsClient | null
+): Promise<string> {
   const parts = []
   
   // Header based on type with both scores
@@ -115,9 +155,77 @@ function createAnalysisNote(sentiment: SentimentResult, conversation: any): stri
     parts.push(`- High Capitalization (${Math.round(sentiment.indicators.capsRatio * 100)}%)`)
   }
   
-  // Suggested response placeholder
+  // Generate AI suggested response
   parts.push('\nSuggested Response:')
-  parts.push('No suggested response. This feature is not yet built.')
+  
+  if (claudeClient && docsClient) {
+    try {
+      // Get customer message from latest thread
+      let customerMessage = conversation.subject || ''
+      if (conversation._embedded?.threads) {
+        const customerThreads = conversation._embedded.threads.filter(
+          (thread: any) => thread.type === 'customer'
+        )
+        if (customerThreads.length > 0) {
+          const latestThread = customerThreads[customerThreads.length - 1]
+          customerMessage = (latestThread.body || '').replace(/<[^>]*>/g, ' ')
+        }
+      }
+      
+      // Get relevant documentation
+      const cachedArticles = await docsClient.getCachedArticles()
+      const relevantDocs = docsClient.findRelevantArticles(customerMessage, cachedArticles, 3)
+      
+      // Load learning files for context
+      const { learnings, gaps } = await loadLearningFiles()
+      
+      // Build conversation history context
+      let conversationHistory = `Subject: ${conversation.subject || 'No subject'}\n`
+      if (conversation._embedded?.threads) {
+        conversation._embedded.threads.forEach((thread: any) => {
+          if (thread.type === 'customer') {
+            const cleanBody = (thread.body || '').replace(/<[^>]*>/g, ' ')
+            conversationHistory += `\nCustomer: ${cleanBody}\n`
+          }
+        })
+      }
+      
+      // Add learnings and gaps as context to relevant docs
+      const contextDocs = [
+        ...relevantDocs,
+        {
+          title: 'Agent Learning Insights',
+          content: learnings,
+          url: 'internal://learnings'
+        },
+        {
+          title: 'Known Documentation Gaps',
+          content: gaps,
+          url: 'internal://gaps'
+        }
+      ]
+      
+      // Generate AI response
+      const aiResponse = await claudeClient.generateResponse(
+        customerMessage,
+        conversationHistory,
+        contextDocs
+      )
+      
+      parts.push(`${aiResponse.suggestedResponse}`)
+      parts.push(`\n[AI Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
+      
+      if (aiResponse.referencedDocs.length > 0) {
+        parts.push(`[Referenced: ${aiResponse.referencedDocs.join(', ')}]`)
+      }
+      
+    } catch (error) {
+      console.error('Failed to generate AI response:', error)
+      parts.push('AI response generation failed. Manual response needed.')
+    }
+  } else {
+    parts.push('No suggested response. AI integration not configured.')
+  }
   
   return parts.join('\n')
 }
@@ -151,6 +259,18 @@ export default async function handler(
       teamsClient = new TeamsClient()
     } catch (error) {
       console.log('Teams integration not configured - skipping notifications')
+    }
+    
+    // Initialize Claude and Docs clients (only if API keys are configured)
+    let claudeClient: ClaudeClient | null = null
+    let docsClient: HelpScoutDocsClient | null = null
+    
+    try {
+      claudeClient = new ClaudeClient()
+      docsClient = new HelpScoutDocsClient()
+      console.log('AI response generation enabled')
+    } catch (error) {
+      console.log('AI integration not configured - using fallback responses')
     }
     
     // Check for dry-run mode
@@ -273,7 +393,7 @@ export default async function handler(
               if (teamsClient) {
                 try {
                   // Generate the same note text that we add to HelpScout
-                  const noteText = createAnalysisNote(sentiment, conversation)
+                  const noteText = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
                   
                   await teamsClient.sendUrgentTicketAlert({
                     conversationId: conversation.id,
@@ -302,7 +422,7 @@ export default async function handler(
               )
               
               if (!hasExistingNote) {
-                const noteText = createAnalysisNote(sentiment, conversation)
+                const noteText = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
                 if (dryRun) {
                   console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
                 } else {
@@ -316,7 +436,7 @@ export default async function handler(
             } catch (error) {
               console.error(`Error checking/adding note for ${conversation.id}:`, error)
               // If we can't check, add the note anyway to ensure it's there
-              const noteText = createAnalysisNote(sentiment, conversation)
+              const noteText = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
               if (!dryRun) {
                 await client.addNote(conversation.id, noteText)
               }

@@ -16,22 +16,27 @@ export class HelpScoutClient {
       return
     }
 
-    const response = await axios.post<TokenResponse>(
-      'https://api.helpscout.net/v2/oauth2/token',
-      {
-        grant_type: 'client_credentials',
-        client_id: process.env.HELPSCOUT_APP_ID,
-        client_secret: process.env.HELPSCOUT_APP_SECRET,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
+    try {
+      const response = await axios.post<TokenResponse>(
+        'https://api.helpscout.net/v2/oauth2/token',
+        {
+          grant_type: 'client_credentials',
+          client_id: process.env.HELPSCOUT_APP_ID,
+          client_secret: process.env.HELPSCOUT_APP_SECRET,
         },
-      }
-    )
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      )
 
-    this.accessToken = response.data.access_token
-    this.tokenExpiry = new Date(Date.now() + response.data.expires_in * 1000)
+      this.accessToken = response.data.access_token
+      this.tokenExpiry = new Date(Date.now() + response.data.expires_in * 1000)
+    } catch (error: any) {
+      console.error('HelpScout authentication failed:', error.response?.data || error.message)
+      throw new Error(`HelpScout auth failed: ${error.response?.data?.error_description || error.message}`)
+    }
   }
 
   async getActiveConversations() {
