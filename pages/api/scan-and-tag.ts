@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { HelpScoutClient } from '../../lib/helpscout-client'
 import { SentimentAnalyzer } from '../../lib/sentiment-analyzer'
+import { TeamsClient } from '../../lib/teams-client'
 
 import { SentimentResult } from '../../lib/sentiment-analyzer'
 
@@ -144,6 +145,14 @@ export default async function handler(
     const client = new HelpScoutClient()
     const analyzer = new SentimentAnalyzer()
     
+    // Initialize Teams client (only if webhook URL is configured)
+    let teamsClient: TeamsClient | null = null
+    try {
+      teamsClient = new TeamsClient()
+    } catch (error) {
+      console.log('Teams integration not configured - skipping notifications')
+    }
+    
     // Check for dry-run mode
     const dryRun = req.query.dryRun === 'true'
     
@@ -199,6 +208,28 @@ export default async function handler(
               // Tag as spam
               await client.addTag(conversation.id, 'spam')
               taggedCount++
+              
+              // Send Teams notification for spam
+              if (teamsClient) {
+                try {
+                  // Determine confidence level
+                  let confidence = 'Low'
+                  if (sentiment.indicators.spamIndicatorCount >= 4) {
+                    confidence = 'High'
+                  } else if (sentiment.indicators.spamIndicatorCount >= 2) {
+                    confidence = 'Medium'
+                  }
+                  
+                  await teamsClient.sendSpamAlert({
+                    conversationId: conversation.id,
+                    customerEmail: conversation.primaryCustomer?.email || 'Unknown',
+                    subject: conversation.subject || 'No subject',
+                    confidence
+                  })
+                } catch (error) {
+                  console.error(`Failed to send Teams spam notification for ${conversation.id}:`, error)
+                }
+              }
             }
             tagged = true
             
@@ -259,6 +290,33 @@ export default async function handler(
             
             if (tagged && !dryRun) {
               taggedCount++
+              
+              // Send Teams notification for newly tagged urgent/angry tickets
+              if (teamsClient) {
+                try {
+                  const triggers = []
+                  if (sentiment.indicators.hasProfanity) triggers.push('Profanity')
+                  if (sentiment.indicators.hasNegativeWords) triggers.push('Negative Language')
+                  if (sentiment.indicators.urgencyKeywords.length > 0) triggers.push('Urgency Keywords')
+                  if (sentiment.indicators.subscriptionMentions > 0) triggers.push('Subscription Issues')
+                  if (sentiment.indicators.capsRatio > 0.3) triggers.push('Excessive Caps')
+                  
+                  await teamsClient.sendUrgentTicketAlert({
+                    conversationId: conversation.id,
+                    customerEmail: conversation.primaryCustomer?.email || 'Unknown',
+                    subject: conversation.subject || 'No subject',
+                    preview: conversation.preview || '',
+                    urgencyScore: sentiment.urgencyScore,
+                    angerScore: sentiment.angerScore,
+                    isAngry: sentiment.isAngry,
+                    isHighUrgency: sentiment.isHighUrgency,
+                    triggers,
+                    categories: sentiment.categories
+                  })
+                } catch (error) {
+                  console.error(`Failed to send Teams notification for ${conversation.id}:`, error)
+                }
+              }
             }
           }
           
