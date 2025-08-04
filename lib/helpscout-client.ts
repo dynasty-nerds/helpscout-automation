@@ -242,9 +242,13 @@ export class HelpScoutClient {
     }
 
     // Set assignee - only include if we have a valid user ID
-    // Don't include assignTo field to leave unassigned
-    if (assignTo && assignTo > 0) {
-      requestData.assignTo = assignTo
+    // Try setting to null explicitly for unassigned
+    if (assignTo !== undefined) {
+      if (assignTo === 0 || assignTo === null) {
+        requestData.assignTo = null
+      } else if (assignTo > 0) {
+        requestData.assignTo = assignTo
+      }
     }
 
     await axios.post(
