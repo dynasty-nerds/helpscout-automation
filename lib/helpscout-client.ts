@@ -50,6 +50,21 @@ export class HelpScoutClient {
     return response.data
   }
 
+  async getConversation(conversationId: number) {
+    await this.authenticate()
+
+    const response = await axios.get(`${this.baseURL}/conversations/${conversationId}`, {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+      },
+      params: {
+        embed: 'notes',
+      },
+    })
+
+    return response.data
+  }
+
   async getFolders(mailboxId: number) {
     await this.authenticate()
 
