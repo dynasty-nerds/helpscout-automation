@@ -5,7 +5,9 @@ interface UsageData {
   totalInputTokens: number
   totalOutputTokens: number
   totalCostDollars: number
-  monthlyBudget: number
+  allTimeInputTokens: number
+  allTimeOutputTokens: number
+  allTimeCostDollars: number
   currentMonth: string
 }
 
@@ -21,10 +23,10 @@ export class UsageTracker {
       const data = await fs.readFile(this.filePath, 'utf-8')
       const usage = JSON.parse(data)
       
-      // Reset if new month
+      // Reset monthly totals if new month, but preserve all-time totals
       const currentMonth = new Date().toISOString().substring(0, 7) // YYYY-MM
       if (usage.currentMonth !== currentMonth) {
-        return this.resetMonth(currentMonth)
+        return this.resetMonth(currentMonth, usage)
       }
       
       return usage
@@ -34,12 +36,14 @@ export class UsageTracker {
     }
   }
   
-  private async resetMonth(month: string): Promise<UsageData> {
+  private async resetMonth(month: string, previousUsage?: any): Promise<UsageData> {
     const usage: UsageData = {
       totalInputTokens: 0,
       totalOutputTokens: 0,
       totalCostDollars: 0,
-      monthlyBudget: 100, // $100/month budget
+      allTimeInputTokens: previousUsage?.allTimeInputTokens || 0,
+      allTimeOutputTokens: previousUsage?.allTimeOutputTokens || 0,
+      allTimeCostDollars: previousUsage?.allTimeCostDollars || 0,
       currentMonth: month
     }
     await this.saveUsage(usage)
@@ -61,15 +65,15 @@ export class UsageTracker {
     usage.totalInputTokens += inputTokens
     usage.totalOutputTokens += outputTokens
     usage.totalCostDollars += totalCost
+    usage.allTimeInputTokens += inputTokens
+    usage.allTimeOutputTokens += outputTokens
+    usage.allTimeCostDollars += totalCost
     
     await this.saveUsage(usage)
     return usage
   }
   
   formatUsageString(usage: UsageData): string {
-    const percentUsed = (usage.totalCostDollars / usage.monthlyBudget) * 100
-    const remaining = usage.monthlyBudget - usage.totalCostDollars
-    
-    return `💰 Claude Usage: $${usage.totalCostDollars.toFixed(4)} of $${usage.monthlyBudget} (${percentUsed.toFixed(1)}% used) | $${remaining.toFixed(2)} remaining`
+    return `💰 Claude Usage: This month: $${usage.totalCostDollars.toFixed(4)} | All-time: $${usage.allTimeCostDollars.toFixed(4)}`
   }
 }
