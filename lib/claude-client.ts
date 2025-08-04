@@ -149,8 +149,8 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
           try {
             console.log('Attempting manual extraction from malformed JSON')
             
-            // Use a more flexible regex that handles multiline content
-            const responseMatch = jsonString.match(/"suggestedResponse":\s*"((?:[^"\\]|\\.)*)"/s)
+            // Use regex patterns that work without the 's' flag
+            const responseMatch = jsonString.match(/"suggestedResponse":\s*"((?:[^"\\]|\\.)*)"/)
             const suggestedResponse = responseMatch?.[1] || ''
             
             const confidenceMatch = jsonString.match(/"confidence":\s*([\d.]+)/)
@@ -159,22 +159,22 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
             const typeMatch = jsonString.match(/"responseType":\s*"([^"]*)"/)
             const responseType = typeMatch?.[1] || 'general'
             
-            const reasoningMatch = jsonString.match(/"reasoning":\s*"((?:[^"\\]|\\.)*)"/s)
+            const reasoningMatch = jsonString.match(/"reasoning":\s*"((?:[^"\\]|\\.)*)"/)
             const reasoning = reasoningMatch?.[1]?.replace(/\\n/g, '\n') || 'Response generated successfully'
             
-            const notesMatch = jsonString.match(/"notesForAgent":\s*"((?:[^"\\]|\\.)*)"/s)
+            const notesMatch = jsonString.match(/"notesForAgent":\s*"((?:[^"\\]|\\.)*)"/)
             const notesForAgent = notesMatch?.[1]?.replace(/\\n/g, '\n') || ''
             
-            // Extract arrays
+            // Extract arrays - use [\s\S] instead of . with s flag
             let referencedDocs: string[] = []
             let referencedUrls: string[] = []
             
-            const docsMatch = jsonString.match(/"referencedDocs":\s*\[(.*?)\]/s)
+            const docsMatch = jsonString.match(/"referencedDocs":\s*\[([\s\S]*?)\]/)
             if (docsMatch) {
               referencedDocs = docsMatch[1].match(/"([^"]*)"/g)?.map(s => s.replace(/"/g, '')) || []
             }
             
-            const urlsMatch = jsonString.match(/"referencedUrls":\s*\[(.*?)\]/s)
+            const urlsMatch = jsonString.match(/"referencedUrls":\s*\[([\s\S]*?)\]/)
             if (urlsMatch) {
               referencedUrls = urlsMatch[1].match(/"([^"]*)"/g)?.map(s => s.replace(/"/g, '')) || []
             }
