@@ -108,7 +108,7 @@ function createAnalysisNote(sentiment: SentimentResult, conversation: any): stri
   
   // Suggested response placeholder
   parts.push('\nSuggested Response:')
-  parts.push('No suggested response.')
+  parts.push('No suggested response. This feature is not yet built.')
   
   return parts.join('\n')
 }
