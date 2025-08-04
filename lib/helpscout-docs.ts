@@ -32,8 +32,11 @@ export class HelpScoutDocsClient {
   private async makeRequest(endpoint: string, params?: any): Promise<any> {
     try {
       const response = await axios.get(`${this.baseURL}${endpoint}`, {
+        auth: {
+          username: this.apiKey,
+          password: 'X'
+        },
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json'
         },
         params
