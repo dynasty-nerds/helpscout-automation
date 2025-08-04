@@ -29,7 +29,15 @@ function createSpamNote(sentiment: SentimentResult, text: string): string {
     reasons.push('- Generic "editorial team" greeting')
   }
   
-  return `🗑️ SPAM DETECTED
+  // Determine confidence level based on indicator count
+  let confidence = 'Low'
+  if (sentiment.indicators.spamIndicatorCount >= 4) {
+    confidence = 'High'
+  } else if (sentiment.indicators.spamIndicatorCount >= 2) {
+    confidence = 'Medium'
+  }
+  
+  return `🗑️ SPAM DETECTED (${confidence} confidence)
 
 Reasons:
 ${reasons.join('\n')}
@@ -40,11 +48,11 @@ Total spam indicators found: ${sentiment.indicators.spamIndicatorCount}`
 function createAnalysisNote(sentiment: SentimentResult, conversation: any): string {
   const parts = []
   
-  // Header based on type
+  // Header based on type with both scores
   if (sentiment.isAngry) {
-    parts.push(`⚠️ ANGRY CUSTOMER DETECTED (Score: ${sentiment.angerScore}/100)`)
+    parts.push(`⚠️ ANGRY (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
   } else {
-    parts.push(`🚨 HIGH URGENCY CUSTOMER DETECTED (Score: ${sentiment.urgencyScore}/100)`)
+    parts.push(`🚨 HIGH URGENCY (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
   }
   
   // Issue category
