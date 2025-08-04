@@ -50,9 +50,9 @@ function createAnalysisNote(sentiment: SentimentResult, conversation: any): stri
   
   // Header based on type with both scores
   if (sentiment.isAngry) {
-    parts.push(`⚠️ ANGRY (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
+    parts.push(`😡 ANGRY (Anger: ${sentiment.angerScore}/100, Urgency: ${sentiment.urgencyScore}/100)`)
   } else {
-    parts.push(`🚨 HIGH URGENCY (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
+    parts.push(`❗ HIGH URGENCY (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
   }
   
   // Issue category
