@@ -101,8 +101,8 @@ async function createAnalysisNote(
   } else if (sentiment.isHighUrgency) {
     parts.push(`❗ HIGH URGENCY (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
   } else {
-    // For non-urgent tickets, just show the scores without emoji
-    parts.push(`Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100`)
+    // For non-urgent tickets, show with 📝 emoji
+    parts.push(`📝 STANDARD (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
   }
   
   // Issue category
