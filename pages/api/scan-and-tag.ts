@@ -124,6 +124,8 @@ interface UrgentTicket {
   indicators: any
   createdAt: string
   tagged: boolean
+  wouldTag?: string[] // tags that would be added in dry run
+  wouldAddNote?: boolean // whether a note would be added
 }
 
 export default async function handler(
@@ -134,24 +136,23 @@ export default async function handler(
     const client = new HelpScoutClient()
     const analyzer = new SentimentAnalyzer()
     
+    // Check for dry-run mode
+    const dryRun = req.query.dryRun === 'true'
+    
     // Get all active conversations
     const conversationsData = await client.getActiveConversations()
     const conversations = conversationsData._embedded?.conversations || []
     
     console.log(`Found ${conversations.length} active conversations`)
+    if (dryRun) {
+      console.log('DRY RUN MODE - No tags or notes will be added')
+    }
     
     const urgentTickets: UrgentTicket[] = []
     let taggedCount = 0
     
-    // TESTING: Only process specific conversations
-    const testConversationIds = [3014322028, 3023809608];
-    
     // Analyze each conversation
     for (const conversation of conversations) {
-      // Skip all conversations except our test ones
-      if (!testConversationIds.includes(conversation.id)) {
-        continue;
-      }
       // Check existing tags - ensure they are strings
       const rawTags = conversation.tags || []
       const existingTags = rawTags.map((tag: any) => String(tag))
@@ -186,10 +187,12 @@ export default async function handler(
         try {
           // Handle spam separately
           if (sentiment.isSpam && !existingTags.includes('spam')) {
-            // Tag as spam
-            await client.addTag(conversation.id, 'spam')
+            if (!dryRun) {
+              // Tag as spam
+              await client.addTag(conversation.id, 'spam')
+              taggedCount++
+            }
             tagged = true
-            taggedCount++
             
             // Check for existing spam notes before adding
             try {
@@ -204,9 +207,13 @@ export default async function handler(
               
               if (!hasExistingSpamNote) {
                 const spamNote = createSpamNote(sentiment, textToAnalyze)
-                console.log(`Adding spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
-                await client.addNote(conversation.id, spamNote)
-                console.log(`Successfully added SPAM note to ${conversation.id}`)
+                if (dryRun) {
+                  console.log(`[DRY RUN] Would add spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
+                } else {
+                  console.log(`Adding spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
+                  await client.addNote(conversation.id, spamNote)
+                  console.log(`Successfully added SPAM note to ${conversation.id}`)
+                }
               } else {
                 console.log(`Skipped spam note for ${conversation.id} - already has spam note`)
               }
@@ -214,27 +221,35 @@ export default async function handler(
               console.error(`Error checking/adding spam note for ${conversation.id}:`, error)
               // If we can't check, add the note anyway to ensure it's there
               const spamNote = createSpamNote(sentiment, textToAnalyze)
-              await client.addNote(conversation.id, spamNote)
+              if (!dryRun) {
+                await client.addNote(conversation.id, spamNote)
+              }
             }
           } else if (!sentiment.isSpam && (sentiment.isAngry || sentiment.isHighUrgency)) {
             // Handle angry/urgent tags
             if (sentiment.isAngry) {
               // Angry customers always get both tags
               if (!hasAngryTag) {
-                await client.addTag(conversation.id, 'angry-customer')
+                if (!dryRun) {
+                  await client.addTag(conversation.id, 'angry-customer')
+                }
                 tagged = true
               }
               if (!hasUrgencyTag) {
-                await client.addTag(conversation.id, 'high-urgency')
+                if (!dryRun) {
+                  await client.addTag(conversation.id, 'high-urgency')
+                }
                 tagged = true
               }
             } else if (sentiment.isHighUrgency && !hasUrgencyTag) {
               // Non-angry but urgent only gets high-urgency tag
-              await client.addTag(conversation.id, 'high-urgency')
+              if (!dryRun) {
+                await client.addTag(conversation.id, 'high-urgency')
+              }
               tagged = true
             }
             
-            if (tagged) {
+            if (tagged && !dryRun) {
               taggedCount++
             }
             
@@ -252,9 +267,13 @@ export default async function handler(
               
               if (!hasExistingNote) {
                 const noteText = createAnalysisNote(sentiment, conversation)
-                console.log(`Adding note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
-                await client.addNote(conversation.id, noteText)
-                console.log(`Successfully added note to ticket ${conversation.id}`)
+                if (dryRun) {
+                  console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
+                } else {
+                  console.log(`Adding note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
+                  await client.addNote(conversation.id, noteText)
+                  console.log(`Successfully added note to ticket ${conversation.id}`)
+                }
               } else {
                 console.log(`Skipped note for ${conversation.id} - already has automated note`)
               }
@@ -262,7 +281,9 @@ export default async function handler(
               console.error(`Error checking/adding note for ${conversation.id}:`, error)
               // If we can't check, add the note anyway to ensure it's there
               const noteText = createAnalysisNote(sentiment, conversation)
-              await client.addNote(conversation.id, noteText)
+              if (!dryRun) {
+                await client.addNote(conversation.id, noteText)
+              }
             }
           } else if (sentiment.isSpam && !existingTags.includes('spam')) {
             // This block is now redundant - remove it
@@ -270,6 +291,18 @@ export default async function handler(
           // If scores are same or lower, do nothing
         } catch (error) {
           console.error(`Failed to process conversation ${conversation.id}:`, error)
+        }
+        
+        const wouldTag: string[] = []
+        if (sentiment.isSpam && !existingTags.includes('spam')) {
+          wouldTag.push('spam')
+        } else if (!sentiment.isSpam) {
+          if (sentiment.isAngry) {
+            if (!hasAngryTag) wouldTag.push('angry-customer')
+            if (!hasUrgencyTag) wouldTag.push('high-urgency')
+          } else if (sentiment.isHighUrgency && !hasUrgencyTag) {
+            wouldTag.push('high-urgency')
+          }
         }
         
         urgentTickets.push({
@@ -282,7 +315,9 @@ export default async function handler(
           categories: sentiment.categories,
           indicators: sentiment.indicators,
           createdAt: conversation.createdAt,
-          tagged
+          tagged,
+          wouldTag: dryRun ? wouldTag : undefined,
+          wouldAddNote: dryRun ? wouldTag.length > 0 : undefined
         })
       }
     }
@@ -312,8 +347,11 @@ export default async function handler(
       spamCount,
       taggedCount,
       urgentTickets: urgentTickets.slice(0, 10), // Top 10
-      message: `Tagged ${newUrgentCount} urgent, ${spamCount} spam, ${escalationCount} escalations`,
-      timestamp: new Date().toISOString()
+      message: dryRun 
+        ? `DRY RUN: Would tag ${newUrgentCount} urgent, ${spamCount} spam`
+        : `Tagged ${newUrgentCount} urgent, ${spamCount} spam, ${escalationCount} escalations`,
+      timestamp: new Date().toISOString(),
+      dryRun
     })
     
   } catch (error) {
