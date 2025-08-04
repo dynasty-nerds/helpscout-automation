@@ -122,7 +122,7 @@ Please respond with a JSON object in this exact format:
         
         // Try to fix common JSON issues - properly escape newlines in quoted strings
         // This more robust approach handles nested quotes and escapes
-        jsonString = jsonString.replace(/("(?:[^"\\]|\\.)*")/g, (match) => {
+        jsonString = jsonString.replace(/("(?:[^"\\]|\\.)*")/g, (match: string) => {
           return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
         })
         
