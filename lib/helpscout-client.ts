@@ -53,16 +53,21 @@ export class HelpScoutClient {
   async getConversation(conversationId: number) {
     await this.authenticate()
 
-    const response = await axios.get(`${this.baseURL}/conversations/${conversationId}`, {
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-      },
-      params: {
-        embed: 'notes',
-      },
-    })
+    try {
+      const response = await axios.get(`${this.baseURL}/conversations/${conversationId}`, {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+        },
+        params: {
+          embed: 'notes',
+        },
+      })
 
-    return response.data
+      return response.data
+    } catch (error: any) {
+      console.error(`Failed to get conversation ${conversationId}:`, error.response?.data || error.message)
+      throw error
+    }
   }
 
   async getFolders(mailboxId: number) {
