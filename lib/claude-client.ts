@@ -61,6 +61,7 @@ CRITICAL INSTRUCTIONS:
 IMPORTANT POLICIES:
 - Agents can process refunds, subscription changes, and account modifications
 - If suggesting a refund or account change, write it as done: "I've processed your refund"
+- For users wanting to sign back up with their grandfathered rate, they can use coupon code NERD-RETRO on sign up to get the grandfathered rate
 
 DOCUMENTATION CONTEXT:
 ${docsContext}
