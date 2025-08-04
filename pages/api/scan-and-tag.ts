@@ -529,18 +529,60 @@ export default async function handler(
       console.error('AI integration not configured - using fallback responses:', error.message)
     }
     
-    // Check for dry-run mode and limit
+    // Check for dry-run mode, limit, and force reprocess
     const dryRun = req.query.dryRun === 'true'
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
+    let forceReprocess = req.query.forceReprocess === 'true'
     
-    // Get all active conversations
-    const conversationsData = await client.getActiveConversations()
+    // Check if we should scan closed tickets instead
+    const scanClosed = req.query.scanClosed === 'true'
+    
+    // Get conversations based on mode
+    let conversationsData
+    if (scanClosed) {
+      console.log('Fetching CLOSED conversations for testing...')
+      conversationsData = await client.getClosedConversations()
+    } else {
+      conversationsData = await client.getActiveConversations()
+    }
     const conversations = conversationsData._embedded?.conversations || []
     
-    console.log(`Found ${conversations.length} active conversations`)
+    console.log(`Found ${conversations.length} ${scanClosed ? 'closed' : 'active'} conversations`)
     
-    // Apply limit if specified
-    const conversationsToProcess = limit ? conversations.slice(0, limit) : conversations
+    // Apply limit if specified - try to find tickets without AI notes
+    let conversationsToProcess = conversations
+    
+    if (limit) {
+      // First try to find tickets without AI notes
+      const ticketsWithoutNotes: any[] = []
+      const ticketsWithNotes: any[] = []
+      
+      for (const conv of conversations) {
+        if (ticketsWithoutNotes.length >= limit) break
+        
+        // Quick check if ticket likely has AI note based on preview
+        const hasAINote = conv.preview?.includes('AI Draft Reply Created') || 
+                         conv.preview?.includes('ANGRY (Anger:') || 
+                         conv.preview?.includes('HIGH URGENCY (Urgency:')
+        
+        if (!hasAINote) {
+          ticketsWithoutNotes.push(conv)
+        } else {
+          ticketsWithNotes.push(conv)
+        }
+      }
+      
+      // Use tickets without notes first, then fill with tickets with notes if needed
+      conversationsToProcess = [
+        ...ticketsWithoutNotes.slice(0, limit),
+        ...ticketsWithNotes.slice(0, Math.max(0, limit - ticketsWithoutNotes.length))
+      ]
+      
+      console.log(`Found ${ticketsWithoutNotes.length} tickets without AI notes`)
+      if (ticketsWithoutNotes.length < limit) {
+        console.log(`Using ${ticketsWithoutNotes.length} without notes + ${conversationsToProcess.length - ticketsWithoutNotes.length} with notes`)
+      }
+    }
     
     if (dryRun) {
       console.log('DRY RUN MODE - No tags or notes will be added')
@@ -548,6 +590,14 @@ export default async function handler(
     
     if (limit) {
       console.log(`LIMIT MODE - Processing only first ${limit} tickets out of ${conversations.length} total`)
+    }
+    
+    if (forceReprocess && dryRun && scanClosed) {
+      console.log('FORCE REPROCESS MODE - Will reprocess CLOSED tickets in DRY RUN only')
+    } else if (forceReprocess) {
+      // Safety: only allow force reprocess on closed tickets in dry run
+      console.log('⚠️  WARNING: Force reprocess only allowed on closed tickets in dry run mode')
+      forceReprocess = false
     }
     
     const urgentTickets: UrgentTicket[] = []
@@ -710,7 +760,7 @@ export default async function handler(
             
             const hasExistingDraft = existingDrafts.length > 0
             
-            if (!hasExistingAINote) {
+            if (!hasExistingAINote || forceReprocess) {
               // Generate AI response and add note for ALL non-spam tickets
               const analysisResult = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
               
