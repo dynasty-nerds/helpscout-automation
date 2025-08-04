@@ -53,13 +53,13 @@ export class HelpScoutDocsClient {
     
     // HelpScout Docs API v1 returns collections directly as an array
     if (Array.isArray(response)) {
-      console.log(`Found ${response.length} documentation collections:`, response.map((c: any) => c.name || c.title).join(', '))
+      console.log(`Found ${response.length} documentation collections:`, response.map((c: any) => c.name).join(', '))
       return response
     }
     
     // Try other possible response structures
     const collections = response.collections?.items || response.collections || response.items || []
-    console.log(`Found ${collections.length} documentation collections:`, collections.map((c: any) => c.name || c.title).join(', '))
+    console.log(`Found ${collections.length} documentation collections:`, collections.map((c: any) => c.name).join(', '))
     return collections
   }
 
@@ -87,7 +87,7 @@ export class HelpScoutDocsClient {
             sort: 'updatedAt'
           })
           const articlesList = data.articles?.items || data.articles || data.items || []
-          console.log(`Collection "${collection.name || collection.title}" (${collection.id}): ${articlesList.length} published articles`)
+          console.log(`Collection "${collection.name}" (${collection.id}): ${articlesList.length} published articles`)
           const collectionArticles = articlesList.map((article: any) => ({
             ...article,
             collectionId: collection.id
