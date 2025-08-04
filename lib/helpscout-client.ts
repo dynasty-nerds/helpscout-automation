@@ -60,9 +60,8 @@ export class HelpScoutClient {
       params: {
         status: 'closed',
         embed: 'threads',
-        sortField: 'closedAt',
-        sortOrder: 'desc',
-        page: 1
+        sortField: 'modifiedAt',
+        sortOrder: 'desc'
       },
     })
 
