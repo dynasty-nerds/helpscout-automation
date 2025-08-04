@@ -171,12 +171,12 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
             
             const docsMatch = jsonString.match(/"referencedDocs":\s*\[([\s\S]*?)\]/)
             if (docsMatch) {
-              referencedDocs = docsMatch[1].match(/"([^"]*)"/g)?.map(s => s.replace(/"/g, '')) || []
+              referencedDocs = docsMatch[1].match(/"([^"]*)"/g)?.map((s: string) => s.replace(/"/g, '')) || []
             }
             
             const urlsMatch = jsonString.match(/"referencedUrls":\s*\[([\s\S]*?)\]/)
             if (urlsMatch) {
-              referencedUrls = urlsMatch[1].match(/"([^"]*)"/g)?.map(s => s.replace(/"/g, '')) || []
+              referencedUrls = urlsMatch[1].match(/"([^"]*)"/g)?.map((s: string) => s.replace(/"/g, '')) || []
             }
             
             result = {
