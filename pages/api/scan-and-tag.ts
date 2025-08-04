@@ -108,7 +108,7 @@ function createAnalysisNote(sentiment: SentimentResult, conversation: any): stri
   
   // Suggested response placeholder
   parts.push('\nSuggested Response:')
-  parts.push('This functionality is not yet deployed.')
+  parts.push('No suggested response.')
   
   return parts.join('\n')
 }
