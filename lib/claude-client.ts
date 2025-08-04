@@ -130,7 +130,7 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
         console.error('Context around position 38:', jsonString.substring(30, 50))
         
         // First, escape all control characters
-        let fixedJson = jsonString.replace(/[\x00-\x1F\x7F]/g, (char) => {
+        let fixedJson = jsonString.replace(/[\x00-\x1F\x7F]/g, (char: string) => {
           switch (char) {
             case '\n': return '\\n'
             case '\r': return '\\r'
