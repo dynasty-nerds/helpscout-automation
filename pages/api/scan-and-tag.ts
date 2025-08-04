@@ -298,6 +298,10 @@ export default async function handler(
     
     // Analyze each conversation
     for (const conversation of conversations) {
+      // TEMPORARY: Only process test ticket 3023420232
+      if (conversation.id !== 3023420232) {
+        continue
+      }
       // Check existing tags - ensure they are strings
       const rawTags = conversation.tags || []
       const existingTags = rawTags.map((tag: any) => String(tag))
