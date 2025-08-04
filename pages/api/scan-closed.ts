@@ -23,16 +23,40 @@ export default async function handler(
     const client = new HelpScoutClient()
     const analyzer = new SentimentAnalyzer()
     
-    // Get closed conversations
-    const conversationsData = await client.getClosedConversations()
-    const conversations = conversationsData._embedded?.conversations || []
+    console.log('READ-ONLY SCAN - No tags or notes will be added to closed tickets')
     
-    console.log(`Found ${conversations.length} closed conversations`)
+    // Fetch multiple pages of closed conversations
+    const allConversations = []
+    const maxPages = 20 // This will get us up to 1000 conversations (50 per page)
+    
+    for (let page = 1; page <= maxPages; page++) {
+      try {
+        const conversationsData = await client.getClosedConversations(page)
+        const pageConversations = conversationsData._embedded?.conversations || []
+        
+        if (pageConversations.length === 0) {
+          break // No more conversations
+        }
+        
+        allConversations.push(...pageConversations)
+        console.log(`Fetched page ${page}, total conversations: ${allConversations.length}`)
+        
+        // Stop if we have enough
+        if (allConversations.length >= 1000) {
+          break
+        }
+      } catch (error) {
+        console.error(`Error fetching page ${page}:`, error)
+        break
+      }
+    }
+    
+    console.log(`Total closed conversations to analyze: ${allConversations.length}`)
     
     const angryExamples: AngryExample[] = []
     
-    // Analyze each conversation
-    for (const conversation of conversations) {
+    // Analyze each conversation (READ-ONLY - no modifications)
+    for (const conversation of allConversations) {
       // Combine subject and latest message for analysis
       let textToAnalyze = conversation.subject || ''
       
@@ -80,9 +104,10 @@ Triggers: ${sentiment.indicators.hasProfanity ? 'Profanity, ' : ''}${sentiment.i
     
     res.status(200).json({
       success: true,
-      scannedCount: conversations.length,
+      scannedCount: allConversations.length,
       angryCount: angryExamples.length,
-      angryExamples: angryExamples.slice(0, 20), // Top 20
+      angryExamples: angryExamples.slice(0, 50), // Top 50 examples
+      message: `READ-ONLY scan of ${allConversations.length} closed tickets - no modifications made`,
       timestamp: new Date().toISOString()
     })
     

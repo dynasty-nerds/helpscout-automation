@@ -50,7 +50,7 @@ export class HelpScoutClient {
     return response.data
   }
 
-  async getClosedConversations() {
+  async getClosedConversations(page: number = 1) {
     await this.authenticate()
 
     const response = await axios.get(`${this.baseURL}/conversations`, {
@@ -61,7 +61,9 @@ export class HelpScoutClient {
         status: 'closed',
         embed: 'threads',
         sortField: 'modifiedAt',
-        sortOrder: 'desc'
+        sortOrder: 'desc',
+        page: page,
+        size: 50  // Max per page
       },
     })
 
