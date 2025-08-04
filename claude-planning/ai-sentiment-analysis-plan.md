@@ -64,6 +64,11 @@ interface AISentimentAnalyzer {
 - Use keyword detection for obvious cases (profanity, spam keywords)
 - Send ambiguous cases to AI for analysis
 - This reduces API costs while improving accuracy
+- **Key Strategy**: Only send tickets that AREN'T flagged as high-urgency to AI
+  - Prefer false positives over false negatives
+  - False positives can be manually removed
+  - False negatives mean missing upset customers
+- AI acts as a safety net to catch subtle anger/frustration missed by keywords
 
 ### 5. Caching Strategy
 - Cache AI responses for similar messages

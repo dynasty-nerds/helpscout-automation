@@ -65,7 +65,9 @@ export class SentimentAnalyzer {
     "you're stupid", "youre stupid", "this is ridiculous", "this is absurd",
     "waste of time", "waste of money", "scam", "fraud", "joke",
     "worst service", "terrible service", "horrible service", "pathetic service",
-    "you people", "you guys are", "no idea what"
+    "you people", "you guys are", "no idea what", "ghosted",
+    "unprofessional", "very unprofessional", "highly unprofessional",
+    "report you", "reporting you", "fraud", "fraudulent", "scammer"
   ];
 
   private subscriptionKeywords = [
@@ -189,11 +191,19 @@ export class SentimentAnalyzer {
     if (capsRatio > 0.5) angerScore += 30;
     else if (capsRatio > 0.3) angerScore += 20;
     
-    // Check for insults
+    // Check for insults and serious accusations
     const foundInsults = this.insultKeywords.filter(keyword =>
       lowerText.includes(keyword)
     ).length;
+    
+    // Fraud and unprofessional accusations are particularly serious
+    const seriousAccusations = ['fraud', 'unprofessional', 'ghosted', 'scam', 'report you', 'reporting you'];
+    const foundSeriousAccusations = seriousAccusations.filter(accusation =>
+      lowerText.includes(accusation)
+    ).length;
+    
     angerScore += foundInsults * 20;
+    angerScore += foundSeriousAccusations * 15; // Extra weight for serious accusations
     
     // Multiple exclamation marks
     const exclamationCount = (text.match(/!/g) || []).length;
@@ -222,7 +232,8 @@ export class SentimentAnalyzer {
         lowerText.includes('weeks ago') || lowerText.includes('multiple times') ||
         lowerText.includes('paying for') || lowerText.includes('i\'m paying') ||
         lowerText.includes('not heard back') || lowerText.includes('no response') ||
-        lowerText.includes('still have not heard')) {
+        lowerText.includes('still have not heard') || lowerText.includes('ghosted') ||
+        lowerText.includes('ignored') || lowerText.includes('no reply')) {
       urgencyScore += 30;
     }
     
