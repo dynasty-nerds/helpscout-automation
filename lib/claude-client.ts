@@ -22,7 +22,8 @@ export class ClaudeClient {
   async generateResponse(
     customerMessage: string,
     conversationHistory: string,
-    relevantDocs: any[]
+    relevantDocs: any[],
+    customerFirstName?: string
   ): Promise<ClaudeResponse> {
     
     // Format documentation for context
@@ -30,15 +31,19 @@ export class ClaudeClient {
       `**${doc.title}**\n${doc.content}\nURL: ${doc.url}\n`
     ).join('\n---\n')
 
-    const systemPrompt = `You are a customer support AI for DynastyNerds, a fantasy football platform. Generate helpful, accurate responses based on our documentation.
+    const greeting = customerFirstName ? `Hey ${customerFirstName},` : 'Hey there,'
+    
+    const systemPrompt = `You are a customer support AI for DynastyNerds, a fantasy football platform. Generate helpful, accurate responses based ONLY on our official documentation.
 
-INSTRUCTIONS:
-1. Generate a helpful response that addresses the customer's specific issue
-2. Reference relevant documentation when applicable  
-3. Match the friendly, professional tone of our team
+CRITICAL INSTRUCTIONS:
+1. Start with "${greeting}" to address the customer directly
+2. ONLY provide instructions and information that come directly from the HelpScout documentation provided
+3. Be VERY friendly, warm, and conversational in tone
 4. Keep responses concise but complete
-5. If you're not sure about something, say so rather than guessing
-6. Always be helpful and empathetic
+5. If the documentation doesn't contain the answer, acknowledge this honestly and suggest they contact support
+6. Never make up information not in the docs
+7. Do NOT include any closing signature, "Thank you", or "Dynasty Nerds Team" - HelpScout adds this automatically
+8. Show empathy for frustrated customers and acknowledge their feelings
 
 DOCUMENTATION CONTEXT:
 ${docsContext}
@@ -51,7 +56,7 @@ ${customerMessage}
 
 Please respond with a JSON object in this exact format:
 {
-  "suggestedResponse": "The actual response text...",
+  "suggestedResponse": "The actual response text starting with ${greeting}...",
   "confidence": 0.95,
   "referencedDocs": ["doc1", "doc2"],
   "reasoning": "Why this response addresses their issue...",

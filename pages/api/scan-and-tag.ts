@@ -206,12 +206,16 @@ async function createAnalysisNote(
         }
       ]
       
+      // Get customer first name
+      const customerFirstName = conversation.primaryCustomer?.firstName || undefined
+      
       // Generate AI response
       console.log(`Calling Claude API for conversation ${conversation.id}`)
       const aiResponse = await claudeClient.generateResponse(
         customerMessage,
         conversationHistory,
-        contextDocs
+        contextDocs,
+        customerFirstName
       )
       console.log(`AI response generated for conversation ${conversation.id}: ${aiResponse.suggestedResponse.substring(0, 50)}...`)
       
