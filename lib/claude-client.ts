@@ -71,15 +71,15 @@ ${conversationHistory}
 CUSTOMER'S LATEST MESSAGE:
 ${customerMessage}
 
-Please respond with a JSON object in this exact format:
+Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for line breaks within JSON string values, not actual newlines:
 {
-  "suggestedResponse": "The actual response text starting with ${greeting}...",
+  "suggestedResponse": "The actual response text starting with ${greeting}... Use \\n\\n for paragraph breaks",
   "confidence": 0.95,
   "referencedDocs": ["article names/titles of docs referenced"],
   "referencedUrls": ["actual helpscout doc URLs for agent reference"],
   "reasoning": "Why this response addresses their issue...",
   "responseType": "billing|technical|account|general",
-  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Format documentation gaps as numbered list with line breaks."
+  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Use \\n for line breaks."
 }`
 
     try {
@@ -125,16 +125,14 @@ Please respond with a JSON object in this exact format:
         console.error('JSON parse error:', parseError.message)
         console.error('Full JSON string:', jsonString)
         
-        // Try to fix common JSON issues
-        // Replace actual newlines within string values with escaped newlines
-        // This regex finds strings and replaces unescaped newlines inside them
+        // Try to fix common JSON issues - simple approach
+        // Replace newlines within string values
         let fixedJson = jsonString
-        
-        // First pass: handle obvious newlines in string values
-        fixedJson = fixedJson.replace(/"([^"]*(?:\\"[^"]*)*)"/g, (match: string) => {
-          // Only process the content inside quotes
-          return match.replace(/([^\\])\n/g, '$1\\n').replace(/^\n/g, '\\n')
-        })
+          .replace(/\r\n/g, '\n') // Normalize line endings
+          .replace(/("(?:[^"\\]|\\.)*")/g, (match) => {
+            // Within each string, escape newlines
+            return match.replace(/\n/g, '\\n')
+          })
         
         try {
           result = JSON.parse(fixedJson)
