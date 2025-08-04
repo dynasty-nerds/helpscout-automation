@@ -184,26 +184,47 @@ export default async function handler(
         let isEscalation = false
         
         try {
-          // Handle tags based on what's needed
-          if (sentiment.isAngry && !sentiment.isSpam) {
-            // Angry customers always get both tags
-            if (!hasAngryTag) {
-              await client.addTag(conversation.id, 'angry-customer')
-              tagged = true
+          // Handle spam separately
+          if (sentiment.isSpam && !existingTags.includes('spam')) {
+            // Tag as spam
+            await client.addTag(conversation.id, 'spam')
+            tagged = true
+            taggedCount++
+            
+            // Check for existing spam note
+            const fullConversation = await client.getConversation(conversation.id)
+            const hasExistingSpamNote = fullConversation._embedded?.notes?.some((note: any) => 
+              note.body?.includes('SPAM DETECTED')
+            )
+            
+            if (!hasExistingSpamNote) {
+              const spamNote = createSpamNote(sentiment, textToAnalyze)
+              await client.addNote(conversation.id, spamNote)
+              console.log(`Added SPAM note to ${conversation.id}`)
             }
-            if (!hasUrgencyTag) {
+          } else if (!sentiment.isSpam && (sentiment.isAngry || sentiment.isHighUrgency)) {
+            // Handle angry/urgent tags
+            if (sentiment.isAngry) {
+              // Angry customers always get both tags
+              if (!hasAngryTag) {
+                await client.addTag(conversation.id, 'angry-customer')
+                tagged = true
+              }
+              if (!hasUrgencyTag) {
+                await client.addTag(conversation.id, 'high-urgency')
+                tagged = true
+              }
+            } else if (sentiment.isHighUrgency && !hasUrgencyTag) {
+              // Non-angry but urgent only gets high-urgency tag
               await client.addTag(conversation.id, 'high-urgency')
               tagged = true
             }
-          } else if (sentiment.isHighUrgency && !hasUrgencyTag && !sentiment.isSpam) {
-            // Non-angry but urgent only gets high-urgency tag
-            await client.addTag(conversation.id, 'high-urgency')
-            tagged = true
-          }
-          
-          // Add note only if we tagged something AND haven't already added a note
-          if (tagged && !hasUrgencyTag && !hasAngryTag) {
-            // Get conversation details to check for existing notes
+            
+            if (tagged) {
+              taggedCount++
+            }
+            
+            // Always check if we need to add a note for angry/urgent tickets
             const fullConversation = await client.getConversation(conversation.id)
             const hasExistingNote = fullConversation._embedded?.notes?.some((note: any) => 
               note.body?.includes('ANGRY CUSTOMER DETECTED') || 
@@ -213,29 +234,12 @@ export default async function handler(
             if (!hasExistingNote) {
               const noteText = createAnalysisNote(sentiment, conversation)
               await client.addNote(conversation.id, noteText)
-              
-              taggedCount++
-              console.log(`Tagged ticket ${conversation.id} - Urgent: ${sentiment.isHighUrgency}, Angry: ${sentiment.isAngry}`)
+              console.log(`Added note to ticket ${conversation.id} - Urgent: ${sentiment.isHighUrgency}, Angry: ${sentiment.isAngry}`)
+            } else {
+              console.log(`Skipped note for ${conversation.id} - already has automated note`)
             }
           } else if (sentiment.isSpam && !existingTags.includes('spam')) {
-            // Tag as spam
-            await client.addTag(conversation.id, 'spam')
-            
-            // Get conversation details to check for existing notes
-            const fullConversation = await client.getConversation(conversation.id)
-            const hasExistingSpamNote = fullConversation._embedded?.notes?.some((note: any) => 
-              note.body?.includes('SPAM DETECTED')
-            )
-            
-            if (!hasExistingSpamNote) {
-              // Create spam note
-              const spamNote = createSpamNote(sentiment, textToAnalyze)
-              await client.addNote(conversation.id, spamNote)
-            }
-            
-            tagged = true
-            taggedCount++
-            console.log(`Tagged SPAM ${conversation.id}`)
+            // This block is now redundant - remove it
           }
           // If scores are same or lower, do nothing
         } catch (error) {
