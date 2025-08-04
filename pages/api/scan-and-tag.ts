@@ -111,13 +111,10 @@ interface UrgentTicket {
   preview: string
   urgencyScore: number
   angerScore: number
-  previousUrgencyScore?: number
-  previousAngerScore?: number
   categories: string[]
   indicators: any
   createdAt: string
   tagged: boolean
-  isEscalation?: boolean
 }
 
 export default async function handler(
@@ -143,20 +140,7 @@ export default async function handler(
       const rawTags = conversation.tags || []
       const existingTags = rawTags.map((tag: any) => String(tag))
       const hasUrgencyTag = existingTags.includes('high-urgency')
-      const hasAngryTag = existingTags.includes('angry')
-      
-      // Look for previous scores in tags
-      let previousUrgencyScore = 0
-      let previousAngerScore = 0
-      const urgencyScoreTag = existingTags.find((tag: string) => tag.startsWith('urgency-score-'))
-      const angerScoreTag = existingTags.find((tag: string) => tag.startsWith('anger-score-'))
-      
-      if (urgencyScoreTag) {
-        previousUrgencyScore = parseInt(urgencyScoreTag.replace('urgency-score-', ''))
-      }
-      if (angerScoreTag) {
-        previousAngerScore = parseInt(angerScoreTag.replace('anger-score-', ''))
-      }
+      const hasAngryTag = existingTags.includes('angry-customer')
       
       // Combine subject and latest message for analysis
       let textToAnalyze = conversation.subject || ''
@@ -184,23 +168,25 @@ export default async function handler(
         let isEscalation = false
         
         try {
-          // Handle tags based on new vs escalation
-          if (!hasUrgencyTag && !sentiment.isSpam) {
-            // New high urgency ticket (not spam)
+          // Handle tags based on what's needed
+          if (sentiment.isHighUrgency && !hasUrgencyTag && !sentiment.isSpam) {
+            // Add high-urgency tag
             await client.addTag(conversation.id, 'high-urgency')
-            await client.addTag(conversation.id, `urgency-score-${sentiment.urgencyScore}`)
-            
-            if (sentiment.isAngry) {
-              await client.addTag(conversation.id, 'angry')
-              await client.addTag(conversation.id, `anger-score-${sentiment.angerScore}`)
-            }
-            
+            tagged = true
+          }
+          
+          if (sentiment.isAngry && !hasAngryTag && !sentiment.isSpam) {
+            // Add angry-customer tag
+            await client.addTag(conversation.id, 'angry-customer')
+            tagged = true
+          }
+          
+          // Add note if this is new (no existing urgency or angry tags)
+          if (tagged && !hasUrgencyTag && !hasAngryTag) {
             const noteText = createAnalysisNote(sentiment, conversation)
             await client.addNote(conversation.id, noteText)
-            
-            tagged = true
             taggedCount++
-            console.log(`Tagged NEW urgent ticket ${conversation.id} - Urgency: ${sentiment.urgencyScore}, Anger: ${sentiment.angerScore}`)
+            console.log(`Tagged ticket ${conversation.id} - Urgent: ${sentiment.isHighUrgency}, Angry: ${sentiment.isAngry}`)
           } else if (sentiment.isSpam && !existingTags.includes('spam')) {
             // Tag as spam
             await client.addTag(conversation.id, 'spam')
@@ -212,36 +198,6 @@ export default async function handler(
             tagged = true
             taggedCount++
             console.log(`Tagged SPAM ${conversation.id}`)
-          } else if (sentiment.urgencyScore > previousUrgencyScore || sentiment.angerScore > previousAngerScore) {
-            // Escalation detected
-            isEscalation = true
-            
-            // Update score tags
-            await client.addTag(conversation.id, `urgency-score-${sentiment.urgencyScore}`)
-            
-            if (sentiment.isAngry) {
-              if (!hasAngryTag) await client.addTag(conversation.id, 'angry')
-              await client.addTag(conversation.id, `anger-score-${sentiment.angerScore}`)
-            }
-            
-            const escalationNote = `🔥 ESCALATION DETECTED
-
-Previous scores:
-- Urgency: ${previousUrgencyScore}/100
-- Anger: ${previousAngerScore}/100
-
-Current scores:
-- Urgency: ${sentiment.urgencyScore}/100 ${sentiment.urgencyScore > previousUrgencyScore ? `(+${sentiment.urgencyScore - previousUrgencyScore})` : ''}
-- Anger: ${sentiment.angerScore}/100 ${sentiment.angerScore > previousAngerScore ? `(+${sentiment.angerScore - previousAngerScore})` : ''}
-
-${createAnalysisNote(sentiment, conversation)}`
-            
-            await client.addNote(conversation.id, escalationNote)
-            
-            tagged = true
-            taggedCount++
-            console.log(`Escalation for ${conversation.id}: Urgency ${previousUrgencyScore}→${sentiment.urgencyScore}, Anger ${previousAngerScore}→${sentiment.angerScore}`)
-          }
           // If scores are same or lower, do nothing
         } catch (error) {
           console.error(`Failed to process conversation ${conversation.id}:`, error)
@@ -254,13 +210,10 @@ ${createAnalysisNote(sentiment, conversation)}`
           preview: conversation.preview || '',
           urgencyScore: sentiment.urgencyScore,
           angerScore: sentiment.angerScore,
-          previousUrgencyScore: previousUrgencyScore > 0 ? previousUrgencyScore : undefined,
-          previousAngerScore: previousAngerScore > 0 ? previousAngerScore : undefined,
           categories: sentiment.categories,
           indicators: sentiment.indicators,
           createdAt: conversation.createdAt,
-          tagged,
-          isEscalation
+          tagged
         })
       }
     }
@@ -273,8 +226,8 @@ ${createAnalysisNote(sentiment, conversation)}`
       return b.angerScore - a.angerScore
     })
     
-    const escalationCount = urgentTickets.filter(t => t.isEscalation).length
-    const newUrgentCount = urgentTickets.filter(t => t.tagged && !t.isEscalation).length
+    const escalationCount = 0 // Removed escalation tracking
+    const newUrgentCount = urgentTickets.filter(t => t.tagged).length
     const angryCount = urgentTickets.filter(t => t.angerScore >= 40).length
     const politeUrgentCount = urgentTickets.filter(t => t.categories.includes('polite') && t.categories.includes('urgent')).length
     const spamCount = urgentTickets.filter(t => t.categories.includes('spam')).length

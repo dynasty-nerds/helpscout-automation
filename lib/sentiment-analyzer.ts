@@ -34,7 +34,9 @@ export class SentimentAnalyzer {
     'terrible', 'awful', 'horrible', 'disgusting', 'pathetic', 
     'useless', 'worthless', 'garbage', 'trash', 'ridiculous',
     'bad', 'poor', 'worst', 'sucks', 'crap', 'stupid', 'dumb',
-    'idiotic', 'incompetent', 'unprofessional', 'unacceptable'
+    'idiotic', 'incompetent', 'unprofessional', 'unacceptable',
+    'disappointed', 'frustrating', 'annoying', 'irritating',
+    'sick of', 'tired of', 'fed up', 'enough', 'done with'
   ];
   
   private negativeContextPhrases = [
@@ -49,7 +51,9 @@ export class SentimentAnalyzer {
   private urgencyKeywords = [
     'immediately', 'now', 'asap', 'urgent', 'emergency', 'right away',
     'today', 'unacceptable', 'outrageous', 'ridiculous', 'frustrated',
-    'angry', 'furious', 'livid', 'pissed', 'disappointed', 'disgusted'
+    'angry', 'furious', 'livid', 'pissed', 'disappointed', 'disgusted',
+    'right now', 'hurry', 'quickly', 'fast', 'need help', 'help me',
+    'still waiting', 'been waiting', 'no response', 'ignored'
   ];
 
   private insultKeywords = [
