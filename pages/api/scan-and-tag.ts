@@ -738,7 +738,7 @@ export default async function handler(
         // First handle tagging for urgent/angry/spam tickets
         if (keywordSentiment.isHighUrgency || keywordSentiment.isAngry || keywordSentiment.isSpam) {
           // Handle spam separately
-          if (sentiment.isSpam && !existingTagNames.includes('spam')) {
+          if (keywordSentiment.isSpam && !existingTagNames.includes('spam')) {
             if (!dryRun) {
               // Tag as spam
               await client.addTag(conversation.id, 'spam')
