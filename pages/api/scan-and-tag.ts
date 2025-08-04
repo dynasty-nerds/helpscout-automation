@@ -181,19 +181,36 @@ export default async function handler(
             tagged = true
           }
           
-          // Add note if this is new (no existing urgency or angry tags)
+          // Add note only if we tagged something AND haven't already added an automated note
           if (tagged && !hasUrgencyTag && !hasAngryTag) {
-            const noteText = createAnalysisNote(sentiment, conversation)
-            await client.addNote(conversation.id, noteText)
-            taggedCount++
-            console.log(`Tagged ticket ${conversation.id} - Urgent: ${sentiment.isHighUrgency}, Angry: ${sentiment.isAngry}`)
+            // Check if we've already added an automated note
+            const hasAutomatedNote = existingTags.includes('automated-note-added')
+            
+            if (!hasAutomatedNote) {
+              const noteText = createAnalysisNote(sentiment, conversation)
+              await client.addNote(conversation.id, noteText)
+              
+              // Tag to track that we've added a note
+              await client.addTag(conversation.id, 'automated-note-added')
+              
+              taggedCount++
+              console.log(`Tagged ticket ${conversation.id} - Urgent: ${sentiment.isHighUrgency}, Angry: ${sentiment.isAngry}`)
+            }
           } else if (sentiment.isSpam && !existingTags.includes('spam')) {
             // Tag as spam
             await client.addTag(conversation.id, 'spam')
             
-            // Create spam note
-            const spamNote = createSpamNote(sentiment, textToAnalyze)
-            await client.addNote(conversation.id, spamNote)
+            // Check if we've already added an automated note
+            const hasAutomatedNote = existingTags.includes('automated-note-added')
+            
+            if (!hasAutomatedNote) {
+              // Create spam note
+              const spamNote = createSpamNote(sentiment, textToAnalyze)
+              await client.addNote(conversation.id, spamNote)
+              
+              // Tag to track that we've added a note
+              await client.addTag(conversation.id, 'automated-note-added')
+            }
             
             tagged = true
             taggedCount++
