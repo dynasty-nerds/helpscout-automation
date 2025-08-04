@@ -131,7 +131,7 @@ Please respond with a JSON object in this exact format:
         let fixedJson = jsonString
         
         // First pass: handle obvious newlines in string values
-        fixedJson = fixedJson.replace(/"([^"]*(?:\\"[^"]*)*)"/g, (match) => {
+        fixedJson = fixedJson.replace(/"([^"]*(?:\\"[^"]*)*)"/g, (match: string) => {
           // Only process the content inside quotes
           return match.replace(/([^\\])\n/g, '$1\\n').replace(/^\n/g, '\\n')
         })
