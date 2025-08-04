@@ -1,4 +1,4 @@
-interface SentimentResult {
+export interface SentimentResult {
   angerScore: number; // 0-100, based on profanity, negative words, caps
   urgencyScore: number; // 0-100, based on urgency keywords, subscription issues
   isAngry: boolean;

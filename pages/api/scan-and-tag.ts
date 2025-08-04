@@ -2,7 +2,42 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { HelpScoutClient } from '../../lib/helpscout-client'
 import { SentimentAnalyzer } from '../../lib/sentiment-analyzer'
 
-function createAnalysisNote(sentiment: any, conversation: any): string {
+import { SentimentResult } from '../../lib/sentiment-analyzer'
+
+function createSpamNote(sentiment: SentimentResult, text: string): string {
+  const reasons = []
+  
+  // Check which spam indicators were found
+  const lowerText = text.toLowerCase()
+  
+  if (lowerText.includes('guest post')) {
+    reasons.push('- Requesting guest post opportunity')
+  }
+  if (lowerText.includes('sponsored post') || lowerText.includes('sponsored content')) {
+    reasons.push('- Requesting sponsored content')
+  }
+  if (lowerText.includes('article contribution') || lowerText.includes('post my article')) {
+    reasons.push('- Wants to contribute/post articles')
+  }
+  if (lowerText.includes('dofollow') || lowerText.includes('backlink')) {
+    reasons.push('- SEO link building request')
+  }
+  if (lowerText.includes('tell me the price') || lowerText.includes('what is the cost')) {
+    reasons.push('- Asking for advertising prices')
+  }
+  if (lowerText.includes('editorial team')) {
+    reasons.push('- Generic "editorial team" greeting')
+  }
+  
+  return `🗑️ SPAM DETECTED
+
+Reasons:
+${reasons.join('\n')}
+
+Total spam indicators found: ${sentiment.indicators.spamIndicatorCount}`
+}
+
+function createAnalysisNote(sentiment: SentimentResult, conversation: any): string {
   const parts = []
   
   // Header based on type
@@ -168,6 +203,11 @@ export default async function handler(
           } else if (sentiment.isSpam && !existingTags.includes('spam')) {
             // Tag as spam
             await client.addTag(conversation.id, 'spam')
+            
+            // Create spam note
+            const spamNote = createSpamNote(sentiment, textToAnalyze)
+            await client.addNote(conversation.id, spamNote)
+            
             tagged = true
             taggedCount++
             console.log(`Tagged SPAM ${conversation.id}`)

@@ -48,14 +48,14 @@ export default async function handler(
       // Analyze sentiment
       const sentiment = analyzer.analyze(textToAnalyze)
       
-      // If anger score is high, add to list
-      if (sentiment.score >= 50) {
+      // If high urgency or angry, add to list
+      if (sentiment.urgencyScore >= 50 || sentiment.angerScore >= 40) {
         angryCustomers.push({
           conversationId: conversation.id,
           customerEmail: conversation.primaryCustomer?.email || 'Unknown',
           subject: conversation.subject || 'No subject',
           preview: conversation.preview || '',
-          angerScore: sentiment.score,
+          angerScore: sentiment.angerScore,
           indicators: sentiment.indicators,
           createdAt: conversation.createdAt
         })
