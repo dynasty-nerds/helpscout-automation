@@ -156,7 +156,6 @@ async function createAnalysisNote(
   }
   
   // Generate AI suggested response
-  parts.push('\nSuggested Response:')
   
   if (claudeClient && docsClient) {
     console.log(`Generating AI response for conversation ${conversation.id}`)
@@ -219,8 +218,8 @@ async function createAnalysisNote(
       )
       console.log(`AI response generated for conversation ${conversation.id}: ${aiResponse.suggestedResponse.substring(0, 50)}...`)
       
-      parts.push(`[AI Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
-      parts.push(`\n${aiResponse.suggestedResponse}`)
+      parts.push(`\nSuggested Response [AI Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]:`)
+      parts.push(`${aiResponse.suggestedResponse}`)
       
       if (aiResponse.referencedDocs.length > 0) {
         parts.push(`\n📚 Referenced Documentation:`)
@@ -250,9 +249,11 @@ async function createAnalysisNote(
     } catch (error: any) {
       console.error('Failed to generate AI response:', error.message || error)
       console.error('Full error details:', error)
+      parts.push('\nSuggested Response:')
       parts.push('AI response generation failed. Manual response needed.')
     }
   } else {
+    parts.push('\nSuggested Response:')
     parts.push('No suggested response. AI integration not configured.')
   }
   
