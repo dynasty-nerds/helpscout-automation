@@ -395,10 +395,6 @@ export default async function handler(
       try {
         // First handle tagging for urgent/angry/spam tickets
         if (sentiment.isHighUrgency || sentiment.isAngry || sentiment.isSpam) {
-        let tagged = false
-        let isEscalation = false
-        
-        try {
           // Handle spam separately
           if (sentiment.isSpam && !existingTags.includes('spam')) {
             if (!dryRun) {
@@ -489,8 +485,7 @@ export default async function handler(
               */
             }
           }
-          
-        } // End of tagging block
+        } // End of urgent/angry/spam tagging
         
         // Now handle AI notes and draft replies for ALL tickets (except spam)
         if (!sentiment.isSpam) {
