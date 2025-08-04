@@ -68,7 +68,7 @@ export class HelpScoutDocsClient {
       // Get articles from specific collection
       const data = await this.makeRequest(`/collections/${collectionId}/articles`, {
         status: 'published',
-        sort: 'updated'
+        sort: 'updatedAt'
       })
       articles = data.articles?.items || data.articles || data.items || []
     } else {
@@ -82,7 +82,7 @@ export class HelpScoutDocsClient {
         try {
           const data = await this.makeRequest(`/collections/${collection.id}/articles`, {
             status: 'published',
-            sort: 'updated'
+            sort: 'updatedAt'
           })
           const articlesList = data.articles?.items || data.articles || data.items || []
           const collectionArticles = articlesList.map((article: any) => ({
