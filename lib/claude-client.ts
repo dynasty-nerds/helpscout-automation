@@ -162,6 +162,7 @@ Please respond with a JSON object in this exact format:
         suggestedResponse: "I'd be happy to help you with this issue. Let me look into this and get back to you shortly.",
         confidence: 0.5,
         referencedDocs: [],
+        referencedUrls: [],
         reasoning: "Fallback response due to API error",
         responseType: "general",
         notesForAgent: `Error calling Claude API: ${error.message}`,

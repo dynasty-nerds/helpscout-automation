@@ -235,6 +235,11 @@ async function createAnalysisNote(
       
       parts.push(`\n✅ AI Draft Reply Created [Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
       
+      if (aiResponse.reasoning) {
+        parts.push(`\n📊 AI Reasoning:`)
+        parts.push(aiResponse.reasoning)
+      }
+      
       if (aiResponse.referencedDocs.length > 0) {
         parts.push(`\n📚 Referenced Documentation:`)
         aiResponse.referencedDocs.forEach((doc, index) => {
