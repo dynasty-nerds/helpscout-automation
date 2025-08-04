@@ -171,23 +171,57 @@ export class HelpScoutClient {
 
     const existingTags = conversation.data.tags || []
     
-    // Only add if tag doesn't already exist
-    if (!existingTags.includes(tag)) {
-      const updatedTags = [...existingTags, tag]
+    // Check if tag already exists (tags can be strings or objects with tag property)
+    const tagStrings: string[] = []
+    let tagAlreadyExists = false
+    
+    existingTags.forEach((t: any) => {
+      let tagName: string | null = null
       
-      // Update with all tags (existing + new)
-      await axios.put(
-        `${this.baseURL}/conversations/${conversationId}/tags`,
-        {
-          tags: updatedTags,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json',
-          },
+      if (typeof t === 'string') {
+        tagName = t
+      } else if (t && typeof t === 'object' && t.tag) {
+        tagName = t.tag
+      }
+      
+      if (tagName) {
+        tagStrings.push(tagName)
+        if (tagName === tag) {
+          tagAlreadyExists = true
         }
-      )
+      }
+    })
+    
+    if (!tagAlreadyExists) {
+      // Add new tag to the list
+      const updatedTags = [...tagStrings, tag]
+      
+      console.log(`Adding tag ${tag} to conversation ${conversationId}. Updated tags:`, updatedTags)
+      
+      // Update with all tags as strings
+      try {
+        await axios.put(
+          `${this.baseURL}/conversations/${conversationId}/tags`,
+          {
+            tags: updatedTags,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${this.accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+        console.log(`Successfully added tag ${tag} to conversation ${conversationId}`)
+      } catch (error: any) {
+        console.error(`Failed to add tag to conversation ${conversationId}:`, error.response?.data || error.message)
+        if (error.response?.data) {
+          console.error('Request data:', JSON.stringify({ tags: updatedTags }))
+        }
+        throw error
+      }
+    } else {
+      console.log(`Tag ${tag} already exists on conversation ${conversationId}, skipping`)
     }
   }
 

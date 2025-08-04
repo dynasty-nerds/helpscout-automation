@@ -375,11 +375,20 @@ export default async function handler(
         continue
       }
       console.log(`Processing test ticket ${conversation.id}`)
-      // Check existing tags - ensure they are strings
+      // Check existing tags - handle both string and object formats
       const rawTags = conversation.tags || []
-      const existingTags = rawTags.map((tag: any) => String(tag))
-      const hasUrgencyTag = existingTags.includes('high-urgency')
-      const hasAngryTag = existingTags.includes('angry-customer')
+      const existingTagNames: string[] = []
+      
+      rawTags.forEach((tag: any) => {
+        if (typeof tag === 'string') {
+          existingTagNames.push(tag)
+        } else if (tag && typeof tag === 'object' && tag.tag) {
+          existingTagNames.push(tag.tag)
+        }
+      })
+      
+      const hasUrgencyTag = existingTagNames.includes('high-urgency')
+      const hasAngryTag = existingTagNames.includes('angry-customer')
       
       // Combine subject and latest message for analysis
       let textToAnalyze = conversation.subject || ''
