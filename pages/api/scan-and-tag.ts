@@ -260,8 +260,10 @@ export default async function handler(
             if (tagged && !dryRun) {
               taggedCount++
             }
-            
-            // Check for existing notes before adding
+          }
+          
+          // ALWAYS check for notes on angry/urgent tickets, regardless of tagging
+          if (!sentiment.isSpam && (sentiment.isAngry || sentiment.isHighUrgency)) {
             try {
               const threadsData = await client.getConversationThreads(conversation.id)
               const existingNotes = threadsData._embedded?.threads?.filter(
@@ -269,8 +271,8 @@ export default async function handler(
               ) || []
               
               const hasExistingNote = existingNotes.some((note: any) => 
-                note.body?.includes('ANGRY CUSTOMER DETECTED') || 
-                note.body?.includes('HIGH URGENCY CUSTOMER DETECTED')
+                note.body?.includes('ANGRY') || 
+                note.body?.includes('HIGH URGENCY')
               )
               
               if (!hasExistingNote) {
