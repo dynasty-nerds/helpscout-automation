@@ -37,12 +37,13 @@ export class HelpScoutClient {
   async getActiveConversations() {
     await this.authenticate()
 
+    // Get both active and pending conversations (not closed or spam)
     const response = await axios.get(`${this.baseURL}/conversations`, {
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
       },
       params: {
-        status: 'active',
+        status: 'active,pending',  // Both active and pending statuses
         embed: 'threads',
       },
     })
