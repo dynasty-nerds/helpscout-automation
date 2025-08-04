@@ -704,15 +704,39 @@ export default async function handler(
         }
       }
       
-      // Analyze sentiment
-      const sentiment = analyzer.analyze(textToAnalyze)
+      // First check if we need to process this ticket at all (saves API calls)
+      let shouldAnalyze = true
+      let previousSentiment: PreviousSentiment | null = null
+      
+      try {
+        const threadsData = await client.getConversationThreads(conversation.id)
+        const allThreads = threadsData._embedded?.threads || []
+        previousSentiment = parsePreviousSentiment(allThreads)
+        
+        if (previousSentiment && !hasNewCustomerMessage(allThreads, previousSentiment.noteCreatedAt)) {
+          shouldAnalyze = false
+          console.log(`Skipping ${conversation.id}: No new customer message since last AI note`)
+        }
+      } catch (error) {
+        console.error(`Error checking threads for ${conversation.id}:`, error)
+        // If we can't check, analyze anyway to be safe
+        shouldAnalyze = true
+      }
+      
+      // Skip this conversation entirely if no new messages
+      if (!shouldAnalyze) {
+        continue
+      }
+      
+      // For now, use keyword sentiment as initial check (will be replaced by AI)
+      const keywordSentiment = analyzer.analyze(textToAnalyze)
       
       // Process ALL active/pending tickets
       let tagged = false
       
       try {
         // First handle tagging for urgent/angry/spam tickets
-        if (sentiment.isHighUrgency || sentiment.isAngry || sentiment.isSpam) {
+        if (keywordSentiment.isHighUrgency || keywordSentiment.isAngry || keywordSentiment.isSpam) {
           // Handle spam separately
           if (sentiment.isSpam && !existingTagNames.includes('spam')) {
             if (!dryRun) {
