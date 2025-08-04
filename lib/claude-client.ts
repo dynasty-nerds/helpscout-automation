@@ -161,7 +161,9 @@ Please respond with a JSON object in this exact format:
         confidence: 0.5,
         referencedDocs: [],
         reasoning: "Fallback response due to API error",
-        responseType: "general"
+        responseType: "general",
+        notesForAgent: `Error calling Claude API: ${error.message}`,
+        usageString: '💰 Claude Usage: $0.0000 for this request (API call failed)'
       }
     }
   }

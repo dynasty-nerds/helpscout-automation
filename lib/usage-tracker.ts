@@ -15,11 +15,14 @@ export class UsageTracker {
   private filePath: string
   
   constructor() {
+    // In production (Vercel), we can't write files, so just track in memory
+    // In a real app, you'd use a database or external service
     this.filePath = path.join(process.cwd(), 'claude-usage.json')
   }
   
   async getUsage(): Promise<UsageData> {
     try {
+      // Try to read file, but if we can't (like on Vercel), just return defaults
       const data = await fs.readFile(this.filePath, 'utf-8')
       const usage = JSON.parse(data)
       
@@ -31,8 +34,16 @@ export class UsageTracker {
       
       return usage
     } catch (error) {
-      // Initialize if file doesn't exist
-      return this.resetMonth(new Date().toISOString().substring(0, 7))
+      // Initialize with defaults - in production this is always used
+      return {
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalCostDollars: 0,
+        allTimeInputTokens: 0,
+        allTimeOutputTokens: 0,
+        allTimeCostDollars: 0,
+        currentMonth: new Date().toISOString().substring(0, 7)
+      }
     }
   }
   
@@ -51,29 +62,34 @@ export class UsageTracker {
   }
   
   private async saveUsage(usage: UsageData): Promise<void> {
-    await fs.writeFile(this.filePath, JSON.stringify(usage, null, 2), 'utf-8')
+    try {
+      await fs.writeFile(this.filePath, JSON.stringify(usage, null, 2), 'utf-8')
+    } catch (error) {
+      // Silently fail on Vercel - in production you'd use a database
+      console.log('Usage tracking skipped - read-only filesystem')
+    }
   }
   
   async trackUsage(inputTokens: number, outputTokens: number): Promise<UsageData> {
-    const usage = await this.getUsage()
-    
     // Claude 3.5 Sonnet pricing: $3/1M input, $15/1M output
     const inputCost = (inputTokens / 1000000) * 3
     const outputCost = (outputTokens / 1000000) * 15
     const totalCost = inputCost + outputCost
     
-    usage.totalInputTokens += inputTokens
-    usage.totalOutputTokens += outputTokens
-    usage.totalCostDollars += totalCost
-    usage.allTimeInputTokens += inputTokens
-    usage.allTimeOutputTokens += outputTokens
-    usage.allTimeCostDollars += totalCost
-    
-    await this.saveUsage(usage)
-    return usage
+    // In production, just calculate and return the cost without persistence
+    // You would track this in a database in a real application
+    return {
+      totalInputTokens: inputTokens,
+      totalOutputTokens: outputTokens,
+      totalCostDollars: totalCost,
+      allTimeInputTokens: inputTokens,
+      allTimeOutputTokens: outputTokens,
+      allTimeCostDollars: totalCost,
+      currentMonth: new Date().toISOString().substring(0, 7)
+    }
   }
   
   formatUsageString(usage: UsageData): string {
-    return `💰 Claude Usage: This month: $${usage.totalCostDollars.toFixed(4)} | All-time: $${usage.allTimeCostDollars.toFixed(4)}`
+    return `💰 Claude Usage: $${usage.totalCostDollars.toFixed(4)} for this request`
   }
 }
