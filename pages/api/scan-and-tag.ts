@@ -95,11 +95,64 @@ interface AnalysisResult {
   }
 }
 
+interface PreviousSentiment {
+  urgencyScore: number
+  angerScore: number
+  noteCreatedAt: string
+}
+
+function parsePreviousSentiment(notes: any[]): PreviousSentiment | null {
+  // Find the most recent AI note with sentiment data
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const note = notes[i]
+    if (note.type === 'note' && note.body) {
+      // Look for sentiment data pattern [SENTIMENT_DATA: U20_A10]
+      const sentimentMatch = note.body.match(/\[SENTIMENT_DATA: U(\d+)_A(\d+)\]/)
+      if (sentimentMatch) {
+        return {
+          urgencyScore: parseInt(sentimentMatch[1]),
+          angerScore: parseInt(sentimentMatch[2]),
+          noteCreatedAt: note.createdAt
+        }
+      }
+    }
+  }
+  return null
+}
+
+function hasNewCustomerMessage(threads: any[], lastNoteTime: string): boolean {
+  // Check if there's a customer message after the last AI note
+  const lastNoteDate = new Date(lastNoteTime)
+  
+  return threads.some(thread => 
+    thread.type === 'customer' && 
+    new Date(thread.createdAt) > lastNoteDate
+  )
+}
+
+function shouldCreateNewNote(current: SentimentResult, previous: PreviousSentiment | null): boolean {
+  // Always create note if no previous sentiment
+  if (!previous) return true
+  
+  // Check if anger or urgency increased by 20+ points
+  const angerIncrease = current.angerScore - previous.angerScore
+  const urgencyIncrease = current.urgencyScore - previous.urgencyScore
+  
+  if (angerIncrease >= 20 || urgencyIncrease >= 20) {
+    console.log(`Sentiment escalation detected - Anger: +${angerIncrease}, Urgency: +${urgencyIncrease}`)
+    return true
+  }
+  
+  console.log(`Sentiment stable - Anger: ${angerIncrease >= 0 ? '+' : ''}${angerIncrease}, Urgency: ${urgencyIncrease >= 0 ? '+' : ''}${urgencyIncrease}`)
+  return false
+}
+
 async function createAnalysisNote(
   keywordSentiment: SentimentResult, 
   conversation: any, 
   claudeClient?: ClaudeClient | null,
-  docsClient?: HelpScoutDocsClient | null
+  docsClient?: HelpScoutDocsClient | null,
+  previousSentiment?: PreviousSentiment | null
 ): Promise<AnalysisResult> {
   const parts = []
   
@@ -204,6 +257,17 @@ async function createAnalysisNote(
   
   // Add summary and header
   parts.push(issueSummary)
+  
+  // Add escalation indicator if sentiment increased
+  if (previousSentiment && sentiment) {
+    const angerIncrease = sentiment.angerScore - previousSentiment.angerScore
+    const urgencyIncrease = sentiment.urgencyScore - previousSentiment.urgencyScore
+    
+    if (angerIncrease >= 20 || urgencyIncrease >= 20) {
+      parts.push(`🔺 ESCALATION - Anger: ${angerIncrease >= 0 ? '+' : ''}${angerIncrease}, Urgency: ${urgencyIncrease >= 0 ? '+' : ''}${urgencyIncrease}`)
+    }
+  }
+  
   parts.push(header)
   
   // Issue category
@@ -461,6 +525,9 @@ async function createAnalysisNote(
       if (aiResponse.usageString && !aiResponse.usageString.includes('API call failed')) {
         parts.push(`\n${aiResponse.usageString}`)
       }
+      
+      // Add hidden sentiment data for incremental tracking
+      parts.push(`\n[SENTIMENT_DATA: U${sentiment.urgencyScore}_A${sentiment.angerScore}]`)
       
     } catch (error: any) {
       console.error('Failed to generate AI response:', error.message || error)
@@ -747,11 +814,32 @@ export default async function handler(
               (thread: any) => thread.type === 'note'
             ) || []
             
-            const hasExistingAINote = existingNotes.some((note: any) => 
-              note.body?.includes('AI Draft Reply Created') || 
-              note.body?.includes('ANGRY') || 
-              note.body?.includes('HIGH URGENCY')
-            )
+            // Parse previous sentiment from notes
+            const allThreads = threadsData._embedded?.threads || []
+            const previousSentiment = parsePreviousSentiment(allThreads)
+            
+            // Check if we should process based on incremental logic
+            let shouldProcess = false
+            let skipReason = ''
+            
+            if (!previousSentiment) {
+              // No previous AI note - always process
+              shouldProcess = true
+              skipReason = 'First AI analysis'
+            } else if (hasNewCustomerMessage(allThreads, previousSentiment.noteCreatedAt)) {
+              // Has new customer message - check sentiment change
+              if (shouldCreateNewNote(sentiment, previousSentiment)) {
+                shouldProcess = true
+                skipReason = 'Sentiment escalation detected'
+              } else {
+                shouldProcess = false
+                skipReason = `Sentiment stable (prev: U${previousSentiment.urgencyScore}/A${previousSentiment.angerScore}, curr: U${sentiment.urgencyScore}/A${sentiment.angerScore})`
+              }
+            } else {
+              // No new customer message
+              shouldProcess = false
+              skipReason = 'No new customer message since last AI note'
+            }
             
             // Check for existing draft replies
             const existingDrafts = threadsData._embedded?.threads?.filter(
@@ -760,9 +848,12 @@ export default async function handler(
             
             const hasExistingDraft = existingDrafts.length > 0
             
-            if (!hasExistingAINote || forceReprocess) {
+            if (shouldProcess || forceReprocess) {
+              if (shouldProcess) {
+                console.log(`Processing ${conversation.id}: ${skipReason}`)
+              }
               // Generate AI response and add note for ALL non-spam tickets
-              const analysisResult = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
+              const analysisResult = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient, previousSentiment)
               
               // Use AI sentiment if available for tagging
               let finalSentiment = sentiment
@@ -820,7 +911,7 @@ export default async function handler(
                 }
               }
             } else {
-              console.log(`Skipped AI note for ${conversation.id} - already has AI-generated note`)
+              console.log(`Skipped ${conversation.id}: ${skipReason}`)
             }
           } catch (error) {
             console.error(`Error processing AI response for ${conversation.id}:`, error)
