@@ -249,7 +249,11 @@ async function createAnalysisNote(
       suggestedResponse = aiResponse.suggestedResponse
       hasAIResponse = !!aiResponse.suggestedResponse
       
-      parts.push(`\n✅ AI Draft Reply Created [Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
+      if (hasAIResponse) {
+        parts.push(`\n✅ AI Draft Reply Created [Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
+      } else {
+        parts.push(`\n❌ AI Draft Reply Failed - Manual response needed`)
+      }
       
       if (aiResponse.reasoning) {
         parts.push(`\n📊 AI Reasoning:`)
