@@ -52,6 +52,7 @@ CRITICAL INSTRUCTIONS:
 8. Show empathy for frustrated customers and acknowledge their feelings
 9. NEVER tell customers to "contact support" - they already have!
 10. Use TWO line breaks between paragraphs for easy readability
+11. IMPORTANT: Complete each sentence before adding line breaks - never break in the middle of a sentence
 
 IMPORTANT POLICIES:
 - Agents can process refunds, subscription changes, and account modifications
@@ -121,9 +122,15 @@ Please respond with a JSON object in this exact format:
         console.error('Full JSON string:', jsonString)
         
         // Try to fix common JSON issues - properly escape newlines in quoted strings
-        // This more robust approach handles nested quotes and escapes
-        jsonString = jsonString.replace(/("(?:[^"\\]|\\.)*")/g, (match: string) => {
-          return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+        // First, find all string values and escape newlines within them
+        jsonString = jsonString.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match: string) => {
+          // Replace unescaped newlines, carriage returns, and tabs
+          return match
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t')
+            .replace(/\f/g, '\\f')
+            .replace(/\b/g, '\\b')
         })
         
         try {
