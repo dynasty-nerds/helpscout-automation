@@ -50,6 +50,7 @@ export class HelpScoutClient {
       params: {
         status: 'active,pending',  // Both active and pending statuses
         embed: 'threads',
+        size: 50,  // Increase from default 25 to 50
       },
     })
 
