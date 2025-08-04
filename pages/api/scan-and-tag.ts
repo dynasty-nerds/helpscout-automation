@@ -98,8 +98,11 @@ async function createAnalysisNote(
   // Header based on type with both scores
   if (sentiment.isAngry) {
     parts.push(`😡 ANGRY (Anger: ${sentiment.angerScore}/100, Urgency: ${sentiment.urgencyScore}/100)`)
-  } else {
+  } else if (sentiment.isHighUrgency) {
     parts.push(`❗ HIGH URGENCY (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
+  } else {
+    // For non-urgent tickets, just show the scores without emoji
+    parts.push(`Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100`)
   }
   
   // Issue category
@@ -111,8 +114,15 @@ async function createAnalysisNote(
   }
   parts.push(`\nCategory: ${categoryMap[sentiment.issueCategory]}`)
   
-  // Triggers detected section
-  parts.push('\nTriggers Detected:')
+  // Triggers detected section - only show if there are triggers
+  const hasAnyTriggers = sentiment.indicators.hasProfanity || 
+                        sentiment.indicators.hasNegativeWords || 
+                        sentiment.indicators.urgencyKeywords.length > 0 || 
+                        sentiment.indicators.subscriptionMentions > 0 || 
+                        sentiment.indicators.capsRatio > 0.3
+  
+  if (hasAnyTriggers) {
+    parts.push('\nTriggers Detected:')
   
   // Combine profanity and negative sentiment into one section
   if (sentiment.indicators.hasProfanity || sentiment.indicators.hasNegativeWords) {
@@ -160,6 +170,7 @@ async function createAnalysisNote(
   if (sentiment.indicators.capsRatio > 0.3) {
     parts.push(`- High Capitalization (${Math.round(sentiment.indicators.capsRatio * 100)}%)`)
   }
+  } // Close hasAnyTriggers check
   
   // Generate AI suggested response
   let suggestedResponse: string | undefined
@@ -377,8 +388,12 @@ export default async function handler(
       // Analyze sentiment
       const sentiment = analyzer.analyze(textToAnalyze)
       
-      // Process if high urgency OR angry OR spam
-      if (sentiment.isHighUrgency || sentiment.isAngry || sentiment.isSpam) {
+      // Process ALL active/pending tickets
+      let tagged = false
+      
+      try {
+        // First handle tagging for urgent/angry/spam tickets
+        if (sentiment.isHighUrgency || sentiment.isAngry || sentiment.isSpam) {
         let tagged = false
         let isEscalation = false
         
@@ -474,77 +489,70 @@ export default async function handler(
             }
           }
           
-          // ALWAYS check for notes on angry/urgent tickets, regardless of tagging
-          if (!sentiment.isSpam && (sentiment.isAngry || sentiment.isHighUrgency)) {
-            try {
-              // FIRST check if note already exists to avoid wasting Claude API credits
-              const threadsData = await client.getConversationThreads(conversation.id)
-              const existingNotes = threadsData._embedded?.threads?.filter(
-                (thread: any) => thread.type === 'note'
-              ) || []
-              
-              const hasExistingNote = existingNotes.some((note: any) => 
-                note.body?.includes('ANGRY') || 
-                note.body?.includes('HIGH URGENCY')
-              )
-              
-              // Also check for existing draft replies
-              const existingDrafts = threadsData._embedded?.threads?.filter(
-                (thread: any) => thread.type === 'reply' && thread.state === 'draft'
-              ) || []
-              
-              const hasExistingDraft = existingDrafts.length > 0
-              
-              if (hasExistingNote) {
-                console.log(`Skipped note for ${conversation.id} - already has automated note`)
-              } else {
-                // Log if there are other types of notes (like technical/beacon info)
-                if (existingNotes.length > 0) {
-                  console.log(`Conversation ${conversation.id} has ${existingNotes.length} other notes (likely technical/beacon info)`)
+        } // End of tagging block
+        
+        // Now handle AI notes and draft replies for ALL tickets (except spam)
+        if (!sentiment.isSpam) {
+          try {
+            // Check if note already exists to avoid duplicates
+            const threadsData = await client.getConversationThreads(conversation.id)
+            const existingNotes = threadsData._embedded?.threads?.filter(
+              (thread: any) => thread.type === 'note'
+            ) || []
+            
+            const hasExistingAINote = existingNotes.some((note: any) => 
+              note.body?.includes('AI Draft Reply Created') || 
+              note.body?.includes('ANGRY') || 
+              note.body?.includes('HIGH URGENCY')
+            )
+            
+            // Check for existing draft replies
+            const existingDrafts = threadsData._embedded?.threads?.filter(
+              (thread: any) => thread.type === 'reply' && thread.state === 'draft'
+            ) || []
+            
+            const hasExistingDraft = existingDrafts.length > 0
+            
+            if (!hasExistingAINote) {
+              // Generate AI response and add note for ALL non-spam tickets
+              const analysisResult = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
+              if (dryRun) {
+                console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${analysisResult.noteText.substring(0, 100)}...`)
+                if (analysisResult.hasAIResponse && analysisResult.suggestedResponse) {
+                  console.log(`[DRY RUN] Would create draft reply with AI response`)
                 }
+              } else {
+                console.log(`Adding note to ${conversation.id}. Note preview: ${analysisResult.noteText.substring(0, 100)}...`)
+                await client.addNote(conversation.id, analysisResult.noteText)
+                console.log(`Successfully added note to ticket ${conversation.id}`)
                 
-                // Generate AI response and add note
-                const analysisResult = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
-                if (dryRun) {
-                  console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${analysisResult.noteText.substring(0, 100)}...`)
-                  if (analysisResult.hasAIResponse && analysisResult.suggestedResponse) {
-                    console.log(`[DRY RUN] Would create draft reply with AI response`)
-                  }
-                } else {
-                  console.log(`Adding note to ${conversation.id}. Note preview: ${analysisResult.noteText.substring(0, 100)}...`)
-                  await client.addNote(conversation.id, analysisResult.noteText)
-                  console.log(`Successfully added note to ticket ${conversation.id}`)
-                  
-                  // If we have an AI response, create a draft reply
-                  if (analysisResult.hasAIResponse && analysisResult.suggestedResponse && !hasExistingDraft) {
-                    const customerId = conversation.primaryCustomer?.id
-                    if (customerId) {
-                      try {
-                        await client.createDraftReply(conversation.id, customerId, analysisResult.suggestedResponse)
-                        console.log(`Successfully created draft reply for ticket ${conversation.id}`)
-                      } catch (error) {
-                        console.error(`Failed to create draft reply for ${conversation.id}:`, error)
-                      }
-                    } else {
-                      console.error(`No customer ID found for conversation ${conversation.id}, cannot create draft reply`)
+                // Create draft reply if we have an AI response and no existing draft
+                if (analysisResult.hasAIResponse && analysisResult.suggestedResponse && !hasExistingDraft) {
+                  const customerId = conversation.primaryCustomer?.id
+                  if (customerId) {
+                    try {
+                      await client.createDraftReply(conversation.id, customerId, analysisResult.suggestedResponse)
+                      console.log(`Successfully created draft reply for ticket ${conversation.id}`)
+                    } catch (error) {
+                      console.error(`Failed to create draft reply for ${conversation.id}:`, error)
                     }
-                  } else if (hasExistingDraft) {
-                    console.log(`Skipped draft reply for ${conversation.id} - already has draft`)
+                  } else {
+                    console.error(`No customer ID found for conversation ${conversation.id}, cannot create draft reply`)
                   }
+                } else if (hasExistingDraft) {
+                  console.log(`Skipped draft reply for ${conversation.id} - already has draft`)
                 }
               }
-            } catch (error) {
-              console.error(`Error checking/adding note for ${conversation.id}:`, error)
-              // If we can't check threads, skip to avoid wasting credits
-              console.log(`Skipping ${conversation.id} due to error checking threads`)
+            } else {
+              console.log(`Skipped AI note for ${conversation.id} - already has AI-generated note`)
             }
-          } else if (sentiment.isSpam && !existingTags.includes('spam')) {
-            // This block is now redundant - remove it
+          } catch (error) {
+            console.error(`Error processing AI response for ${conversation.id}:`, error)
           }
-          // If scores are same or lower, do nothing
-        } catch (error) {
-          console.error(`Failed to process conversation ${conversation.id}:`, error)
         }
+      } catch (error) {
+        console.error(`Failed to process conversation ${conversation.id}:`, error)
+      }
         
         const wouldTag: string[] = []
         if (sentiment.isSpam && !existingTags.includes('spam')) {

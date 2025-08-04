@@ -282,7 +282,7 @@ export class SentimentAnalyzer {
     if (isSpam) categories.push('spam');
     if (angerScore >= 40) categories.push('angry');
     if (subscriptionMentions > 0) categories.push('subscription-related');
-    if (urgencyScore >= 20) categories.push('urgent'); // Temporarily lowered for testing
+    if (urgencyScore >= 60) categories.push('urgent'); // Production threshold
     if (isPoliteRequest) categories.push('polite');
     
     // Determine issue category
@@ -302,7 +302,7 @@ export class SentimentAnalyzer {
       angerScore,
       urgencyScore,
       isAngry: angerScore >= 40,
-      isHighUrgency: urgencyScore >= 20, // Temporarily lowered for testing
+      isHighUrgency: urgencyScore >= 60, // Production threshold
       isSpam,
       indicators: {
         hasProfanity,
