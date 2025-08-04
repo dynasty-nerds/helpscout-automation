@@ -42,21 +42,50 @@ export class HelpScoutClient {
   async getActiveConversations() {
     await this.authenticate()
 
-    // Get both active and pending conversations (not closed or spam)
-    console.log('Fetching conversations with size=100...')
-    const response = await axios.get(`${this.baseURL}/conversations`, {
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-      },
-      params: {
-        status: 'active,pending',  // Both active and pending statuses
-        embed: 'threads',
-        size: 100,  // Max page size to ensure we get all active tickets
-      },
-    })
+    let allConversations: any[] = []
+    let page = 1
+    let hasMore = true
 
-    console.log(`API returned ${response.data._embedded?.conversations?.length || 0} conversations`)
-    return response.data
+    // Fetch all pages of conversations
+    while (hasMore) {
+      console.log(`Fetching conversations page ${page}...`)
+      const response = await axios.get(`${this.baseURL}/conversations`, {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+        },
+        params: {
+          status: 'active,pending',  // Both active and pending statuses
+          embed: 'threads',
+          page: page,
+          size: 50,  // Use 50 per page for better performance
+        },
+      })
+
+      const conversations = response.data._embedded?.conversations || []
+      allConversations = allConversations.concat(conversations)
+      
+      console.log(`Page ${page} returned ${conversations.length} conversations`)
+      
+      // Check if there are more pages
+      const totalPages = response.data.page?.totalPages || 1
+      hasMore = page < totalPages
+      page++
+      
+      // Safety limit to prevent infinite loops
+      if (page > 10) {
+        console.log('Reached page limit of 10')
+        break
+      }
+    }
+
+    console.log(`Total conversations fetched: ${allConversations.length}`)
+    
+    // Return in the same format as before
+    return {
+      _embedded: {
+        conversations: allConversations
+      }
+    }
   }
 
   async getClosedConversations(page: number = 1) {
