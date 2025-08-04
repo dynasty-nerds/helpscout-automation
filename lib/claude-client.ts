@@ -125,35 +125,71 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
         console.error('JSON parse error:', parseError.message)
         console.error('Full JSON string:', jsonString)
         
-        // Try to fix common JSON issues - simple approach
-        // Replace newlines within string values
-        let fixedJson = jsonString
-          .replace(/\r\n/g, '\n') // Normalize line endings
-          .replace(/("(?:[^"\\]|\\.)*")/g, (match) => {
-            // Within each string, escape newlines
-            return match.replace(/\n/g, '\\n')
-          })
+        // Try to fix common JSON issues - more robust approach
+        console.error('Bad character at position 38:', jsonString.charCodeAt(38), jsonString.charAt(38))
+        console.error('Context around position 38:', jsonString.substring(30, 50))
+        
+        // First, escape all control characters
+        let fixedJson = jsonString.replace(/[\x00-\x1F\x7F]/g, (char) => {
+          switch (char) {
+            case '\n': return '\\n'
+            case '\r': return '\\r'
+            case '\t': return '\\t'
+            case '\b': return '\\b'
+            case '\f': return '\\f'
+            default: return '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4)
+          }
+        })
         
         try {
           result = JSON.parse(fixedJson)
         } catch (secondError) {
           console.error('Failed to parse even after cleanup:', secondError)
-          // Try one more time with a simpler approach
+          // Try one more time with manual extraction
           try {
-            // Extract values manually for the most important fields
-            const suggestedResponse = jsonString.match(/"suggestedResponse":\s*"([^"]*)"/)?.[1] || ''
-            const confidence = parseFloat(jsonString.match(/"confidence":\s*([\d.]+)/)?.[1] || '0.5')
-            const responseType = jsonString.match(/"responseType":\s*"([^"]*)"/)?.[1] || 'general'
+            console.log('Attempting manual extraction from malformed JSON')
+            
+            // Use a more flexible regex that handles multiline content
+            const responseMatch = jsonString.match(/"suggestedResponse":\s*"((?:[^"\\]|\\.)*)"/s)
+            const suggestedResponse = responseMatch?.[1] || ''
+            
+            const confidenceMatch = jsonString.match(/"confidence":\s*([\d.]+)/)
+            const confidence = parseFloat(confidenceMatch?.[1] || '0.5')
+            
+            const typeMatch = jsonString.match(/"responseType":\s*"([^"]*)"/)
+            const responseType = typeMatch?.[1] || 'general'
+            
+            const reasoningMatch = jsonString.match(/"reasoning":\s*"((?:[^"\\]|\\.)*)"/s)
+            const reasoning = reasoningMatch?.[1]?.replace(/\\n/g, '\n') || 'Response generated successfully'
+            
+            const notesMatch = jsonString.match(/"notesForAgent":\s*"((?:[^"\\]|\\.)*)"/s)
+            const notesForAgent = notesMatch?.[1]?.replace(/\\n/g, '\n') || ''
+            
+            // Extract arrays
+            let referencedDocs: string[] = []
+            let referencedUrls: string[] = []
+            
+            const docsMatch = jsonString.match(/"referencedDocs":\s*\[(.*?)\]/s)
+            if (docsMatch) {
+              referencedDocs = docsMatch[1].match(/"([^"]*)"/g)?.map(s => s.replace(/"/g, '')) || []
+            }
+            
+            const urlsMatch = jsonString.match(/"referencedUrls":\s*\[(.*?)\]/s)
+            if (urlsMatch) {
+              referencedUrls = urlsMatch[1].match(/"([^"]*)"/g)?.map(s => s.replace(/"/g, '')) || []
+            }
             
             result = {
               suggestedResponse: suggestedResponse.replace(/\\n/g, '\n'),
               confidence,
-              referencedDocs: [],
-              referencedUrls: [],
-              reasoning: 'Fallback parsing due to JSON error',
+              referencedDocs,
+              referencedUrls,
+              reasoning,
               responseType,
-              notesForAgent: ''
+              notesForAgent
             }
+            
+            console.log('Manual extraction successful')
           } catch (finalError) {
             throw new Error('Invalid JSON response from Claude')
           }
