@@ -358,8 +358,9 @@ export default async function handler(
     
     // Analyze each conversation
     for (const conversation of conversations) {
-      // TEMPORARY: Only process test ticket 3023420232
-      if (conversation.id !== 3023420232) {
+      // TEMPORARY: Only process test tickets
+      const testTickets = [2928025395, 3023420232, 2620095977] // angry, low urgency, urgent
+      if (!testTickets.includes(conversation.id)) {
         continue
       }
       // Check existing tags - ensure they are strings
