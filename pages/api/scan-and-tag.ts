@@ -226,8 +226,9 @@ async function createAnalysisNote(
         parts.push(`[Referenced: ${aiResponse.referencedDocs.join(', ')}]`)
       }
       
-    } catch (error) {
-      console.error('Failed to generate AI response:', error)
+    } catch (error: any) {
+      console.error('Failed to generate AI response:', error.message || error)
+      console.error('Full error details:', error)
       parts.push('AI response generation failed. Manual response needed.')
     }
   } else {
@@ -436,6 +437,9 @@ export default async function handler(
               
               if (hasExistingNote) {
                 console.log(`Skipped note for ${conversation.id} - already has automated note`)
+              } else if (existingNotes.length > 0) {
+                console.log(`Conversation ${conversation.id} has ${existingNotes.length} notes but none match our pattern`)
+                console.log(`First note preview: ${existingNotes[0].body?.substring(0, 100)}...`)
               } else {
                 // Only call Claude API if we're actually going to add a note
                 const noteText = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
