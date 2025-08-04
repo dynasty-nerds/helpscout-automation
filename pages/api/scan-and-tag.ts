@@ -359,11 +359,6 @@ export default async function handler(
     
     console.log(`Found ${conversations.length} active conversations`)
     
-    // Log which test tickets we found
-    const testTickets = [2928025395, 3023420232, 2620095977]
-    const foundTestTickets = conversations.filter((c: any) => testTickets.includes(c.id))
-    console.log(`Found ${foundTestTickets.length} test tickets:`, foundTestTickets.map((c: any) => c.id))
-    
     if (dryRun) {
       console.log('DRY RUN MODE - No tags or notes will be added')
     }
@@ -373,12 +368,6 @@ export default async function handler(
     
     // Analyze each conversation
     for (const conversation of conversations) {
-      // TEMPORARY: Only process test tickets
-      const testTickets = [2928025395, 3023420232, 2620095977] // angry, low urgency, urgent
-      if (!testTickets.includes(conversation.id)) {
-        continue
-      }
-      console.log(`Processing test ticket ${conversation.id}`)
       // Check existing tags - handle both string and object formats
       const rawTags = conversation.tags || []
       const existingTagNames: string[] = []
