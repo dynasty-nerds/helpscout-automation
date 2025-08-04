@@ -206,7 +206,8 @@ async function createAnalysisNote(
       ]
       
       // Get customer first name
-      const customerFirstName = conversation.primaryCustomer?.firstName || undefined
+      console.log(`Primary customer data:`, JSON.stringify(conversation.primaryCustomer || {}, null, 2))
+      const customerFirstName = conversation.primaryCustomer?.firstName || conversation.primaryCustomer?.first || undefined
       
       // Generate AI response
       console.log(`Calling Claude API for conversation ${conversation.id}`)
@@ -237,11 +238,16 @@ async function createAnalysisNote(
       
       if (aiResponse.notesForAgent) {
         parts.push(`\n📝 Notes for Support Team:`)
-        // Split notes by numbered items and add line breaks
-        const noteLines = aiResponse.notesForAgent.split(/(?=\d+\))/)
-          .filter(line => line.trim())
-          .map(line => line.trim())
-        parts.push(noteLines.join('\n\n'))
+        // Format documentation gaps properly
+        let formattedNotes = aiResponse.notesForAgent
+        if (aiResponse.notesForAgent.includes('Documentation gaps:')) {
+          formattedNotes = aiResponse.notesForAgent
+            .replace(/Documentation gaps:\s*/i, 'Documentation gaps:\n')
+            .replace(/(\d+\))/g, '\n$1')
+            .replace(/\.\s*Consider creating/g, '.\n\nConsider creating')
+            .trim()
+        }
+        parts.push(formattedNotes)
       }
       
       if (aiResponse.usageString && !aiResponse.usageString.includes('API call failed')) {

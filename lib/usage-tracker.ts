@@ -90,6 +90,8 @@ export class UsageTracker {
   }
   
   formatUsageString(usage: UsageData): string {
-    return `💰 Claude Usage: $${usage.totalCostDollars.toFixed(4)} for this request`
+    // Since we can't persist data on Vercel, we'll just show per-request cost
+    // In a real app, you'd fetch all-time usage from a database
+    return `💰 Claude Usage: $${usage.totalCostDollars.toFixed(4)} for this request (Note: All-time tracking requires database integration)`
   }
 }

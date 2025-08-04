@@ -42,7 +42,7 @@ export class ClaudeClient {
     const systemPrompt = `You are generating a SUGGESTED RESPONSE for a DynastyNerds support agent to send to a customer. The agent has full access to process refunds, change subscriptions, and take any necessary actions.
 
 CRITICAL INSTRUCTIONS:
-1. Start with "${greeting}" to address the customer directly
+1. Start with "${greeting}" followed by TWO line breaks for readability
 2. Generate the response AS IF the agent is speaking - they can take actions like processing refunds
 3. Do NOT use bold text or markdown formatting - HelpScout notes don't support it
 4. Be VERY friendly, warm, and conversational in tone
@@ -51,6 +51,7 @@ CRITICAL INSTRUCTIONS:
 7. Do NOT include any closing signature - HelpScout adds this automatically
 8. Show empathy for frustrated customers and acknowledge their feelings
 9. NEVER tell customers to "contact support" - they already have!
+10. Use TWO line breaks between paragraphs for easy readability
 
 IMPORTANT POLICIES:
 - Agents can process refunds, subscription changes, and account modifications
@@ -73,7 +74,7 @@ Please respond with a JSON object in this exact format:
   "referencedUrls": ["actual helpscout doc URLs for agent reference"],
   "reasoning": "Why this response addresses their issue...",
   "responseType": "billing|technical|account|general",
-  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Format as: Documentation gaps: 1) First gap 2) Second gap 3) Third gap. Consider creating documentation about these topics to prevent similar issues."
+  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Format documentation gaps as numbered list with line breaks."
 }`
 
     try {
