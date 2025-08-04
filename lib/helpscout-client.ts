@@ -50,22 +50,19 @@ export class HelpScoutClient {
     return response.data
   }
 
-  async getConversation(conversationId: number) {
+  async getConversationThreads(conversationId: number) {
     await this.authenticate()
 
     try {
-      const response = await axios.get(`${this.baseURL}/conversations/${conversationId}`, {
+      const response = await axios.get(`${this.baseURL}/conversations/${conversationId}/threads`, {
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
-        },
-        params: {
-          embed: 'notes',
         },
       })
 
       return response.data
     } catch (error: any) {
-      console.error(`Failed to get conversation ${conversationId}:`, error.response?.data || error.message)
+      console.error(`Failed to get conversation threads ${conversationId}:`, error.response?.data || error.message)
       throw error
     }
   }

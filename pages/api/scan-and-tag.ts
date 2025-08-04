@@ -191,12 +191,31 @@ export default async function handler(
             tagged = true
             taggedCount++
             
-            // Add spam note
-            // TODO: Add duplicate check once we figure out the API issue
-            const spamNote = createSpamNote(sentiment, textToAnalyze)
-            console.log(`Adding spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
-            await client.addNote(conversation.id, spamNote)
-            console.log(`Successfully added SPAM note to ${conversation.id}`)
+            // Check for existing spam notes before adding
+            try {
+              const threadsData = await client.getConversationThreads(conversation.id)
+              const existingNotes = threadsData._embedded?.threads?.filter(
+                (thread: any) => thread.type === 'note'
+              ) || []
+              
+              const hasExistingSpamNote = existingNotes.some((note: any) => 
+                note.body?.includes('SPAM DETECTED')
+              )
+              
+              if (!hasExistingSpamNote) {
+                const spamNote = createSpamNote(sentiment, textToAnalyze)
+                console.log(`Adding spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
+                await client.addNote(conversation.id, spamNote)
+                console.log(`Successfully added SPAM note to ${conversation.id}`)
+              } else {
+                console.log(`Skipped spam note for ${conversation.id} - already has spam note`)
+              }
+            } catch (error) {
+              console.error(`Error checking/adding spam note for ${conversation.id}:`, error)
+              // If we can't check, add the note anyway to ensure it's there
+              const spamNote = createSpamNote(sentiment, textToAnalyze)
+              await client.addNote(conversation.id, spamNote)
+            }
           } else if (!sentiment.isSpam && (sentiment.isAngry || sentiment.isHighUrgency)) {
             // Handle angry/urgent tags
             if (sentiment.isAngry) {
@@ -219,12 +238,32 @@ export default async function handler(
               taggedCount++
             }
             
-            // Add note for angry/urgent tickets
-            // TODO: Add duplicate check once we figure out the API issue
-            const noteText = createAnalysisNote(sentiment, conversation)
-            console.log(`Adding note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
-            await client.addNote(conversation.id, noteText)
-            console.log(`Successfully added note to ticket ${conversation.id}`)
+            // Check for existing notes before adding
+            try {
+              const threadsData = await client.getConversationThreads(conversation.id)
+              const existingNotes = threadsData._embedded?.threads?.filter(
+                (thread: any) => thread.type === 'note'
+              ) || []
+              
+              const hasExistingNote = existingNotes.some((note: any) => 
+                note.body?.includes('ANGRY CUSTOMER DETECTED') || 
+                note.body?.includes('HIGH URGENCY CUSTOMER DETECTED')
+              )
+              
+              if (!hasExistingNote) {
+                const noteText = createAnalysisNote(sentiment, conversation)
+                console.log(`Adding note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
+                await client.addNote(conversation.id, noteText)
+                console.log(`Successfully added note to ticket ${conversation.id}`)
+              } else {
+                console.log(`Skipped note for ${conversation.id} - already has automated note`)
+              }
+            } catch (error) {
+              console.error(`Error checking/adding note for ${conversation.id}:`, error)
+              // If we can't check, add the note anyway to ensure it's there
+              const noteText = createAnalysisNote(sentiment, conversation)
+              await client.addNote(conversation.id, noteText)
+            }
           } else if (sentiment.isSpam && !existingTags.includes('spam')) {
             // This block is now redundant - remove it
           }
