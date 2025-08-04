@@ -159,6 +159,7 @@ async function createAnalysisNote(
   parts.push('\nSuggested Response:')
   
   if (claudeClient && docsClient) {
+    console.log(`Generating AI response for conversation ${conversation.id}`)
     try {
       // Get customer message from latest thread
       let customerMessage = conversation.subject || ''
@@ -206,11 +207,13 @@ async function createAnalysisNote(
       ]
       
       // Generate AI response
+      console.log(`Calling Claude API for conversation ${conversation.id}`)
       const aiResponse = await claudeClient.generateResponse(
         customerMessage,
         conversationHistory,
         contextDocs
       )
+      console.log(`AI response generated for conversation ${conversation.id}: ${aiResponse.suggestedResponse.substring(0, 50)}...`)
       
       parts.push(`${aiResponse.suggestedResponse}`)
       parts.push(`\n[AI Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
