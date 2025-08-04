@@ -139,8 +139,9 @@ export default async function handler(
     
     // Analyze each conversation
     for (const conversation of conversations) {
-      // Check existing tags
-      const existingTags = conversation.tags || []
+      // Check existing tags - ensure they are strings
+      const rawTags = conversation.tags || []
+      const existingTags = rawTags.map((tag: any) => String(tag))
       const hasUrgencyTag = existingTags.includes('high-urgency')
       const hasAngryTag = existingTags.includes('angry')
       
