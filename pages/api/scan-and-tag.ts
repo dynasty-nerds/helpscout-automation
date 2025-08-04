@@ -81,12 +81,18 @@ ${reasons.join('\n')}
 Total spam indicators found: ${sentiment.indicators.spamIndicatorCount}`
 }
 
+interface AnalysisResult {
+  noteText: string
+  suggestedResponse?: string
+  hasAIResponse: boolean
+}
+
 async function createAnalysisNote(
   sentiment: SentimentResult, 
   conversation: any, 
   claudeClient?: ClaudeClient | null,
   docsClient?: HelpScoutDocsClient | null
-): Promise<string> {
+): Promise<AnalysisResult> {
   const parts = []
   
   // Header based on type with both scores
@@ -156,6 +162,8 @@ async function createAnalysisNote(
   }
   
   // Generate AI suggested response
+  let suggestedResponse: string | undefined
+  let hasAIResponse = false
   
   if (claudeClient && docsClient) {
     console.log(`Generating AI response for conversation ${conversation.id}`)
@@ -221,8 +229,11 @@ async function createAnalysisNote(
       )
       console.log(`AI response generated for conversation ${conversation.id}: ${aiResponse.suggestedResponse.substring(0, 50)}...`)
       
-      parts.push(`\nSuggested Response [AI Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]:`)
-      parts.push(`${aiResponse.suggestedResponse}`)
+      // Store the suggested response separately
+      suggestedResponse = aiResponse.suggestedResponse
+      hasAIResponse = true
+      
+      parts.push(`\n✅ AI Draft Reply Created [Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
       
       if (aiResponse.referencedDocs.length > 0) {
         parts.push(`\n📚 Referenced Documentation:`)
@@ -261,11 +272,14 @@ async function createAnalysisNote(
       parts.push('AI response generation failed. Manual response needed.')
     }
   } else {
-    parts.push('\nSuggested Response:')
-    parts.push('No suggested response. AI integration not configured.')
+    parts.push('\nNo suggested response. AI integration not configured.')
   }
   
-  return parts.join('\n')
+  return {
+    noteText: parts.join('\n'),
+    suggestedResponse,
+    hasAIResponse
+  }
 }
 
 interface UrgentTicket {
@@ -469,6 +483,13 @@ export default async function handler(
                 note.body?.includes('HIGH URGENCY')
               )
               
+              // Also check for existing draft replies
+              const existingDrafts = threadsData._embedded?.threads?.filter(
+                (thread: any) => thread.type === 'reply' && thread.state === 'draft'
+              ) || []
+              
+              const hasExistingDraft = existingDrafts.length > 0
+              
               if (hasExistingNote) {
                 console.log(`Skipped note for ${conversation.id} - already has automated note`)
               } else {
@@ -478,13 +499,33 @@ export default async function handler(
                 }
                 
                 // Generate AI response and add note
-                const noteText = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
+                const analysisResult = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
                 if (dryRun) {
-                  console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
+                  console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${analysisResult.noteText.substring(0, 100)}...`)
+                  if (analysisResult.hasAIResponse && analysisResult.suggestedResponse) {
+                    console.log(`[DRY RUN] Would create draft reply with AI response`)
+                  }
                 } else {
-                  console.log(`Adding note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
-                  await client.addNote(conversation.id, noteText)
+                  console.log(`Adding note to ${conversation.id}. Note preview: ${analysisResult.noteText.substring(0, 100)}...`)
+                  await client.addNote(conversation.id, analysisResult.noteText)
                   console.log(`Successfully added note to ticket ${conversation.id}`)
+                  
+                  // If we have an AI response, create a draft reply
+                  if (analysisResult.hasAIResponse && analysisResult.suggestedResponse && !hasExistingDraft) {
+                    const customerId = conversation.primaryCustomer?.id
+                    if (customerId) {
+                      try {
+                        await client.createDraftReply(conversation.id, customerId, analysisResult.suggestedResponse)
+                        console.log(`Successfully created draft reply for ticket ${conversation.id}`)
+                      } catch (error) {
+                        console.error(`Failed to create draft reply for ${conversation.id}:`, error)
+                      }
+                    } else {
+                      console.error(`No customer ID found for conversation ${conversation.id}, cannot create draft reply`)
+                    }
+                  } else if (hasExistingDraft) {
+                    console.log(`Skipped draft reply for ${conversation.id} - already has draft`)
+                  }
                 }
               }
             } catch (error) {

@@ -141,6 +141,27 @@ export class HelpScoutClient {
     )
   }
 
+  async createDraftReply(conversationId: number, customerId: number, text: string) {
+    await this.authenticate()
+
+    await axios.post(
+      `${this.baseURL}/conversations/${conversationId}/reply`,
+      {
+        customer: {
+          id: customerId
+        },
+        text: text,
+        draft: true
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+  }
+
   async addNote(conversationId: number, text: string) {
     await this.authenticate()
 
