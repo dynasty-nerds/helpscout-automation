@@ -191,23 +191,12 @@ export default async function handler(
             tagged = true
             taggedCount++
             
-            // Check for existing spam note
-            console.log(`Checking notes for spam conversation ${conversation.id}...`)
-            const fullConversation = await client.getConversation(conversation.id)
-            console.log(`Notes found:`, fullConversation._embedded?.notes?.length || 0)
-            
-            const hasExistingSpamNote = fullConversation._embedded?.notes?.some((note: any) => 
-              note.body?.includes('SPAM DETECTED')
-            )
-            
-            if (!hasExistingSpamNote) {
-              const spamNote = createSpamNote(sentiment, textToAnalyze)
-              console.log(`Adding spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
-              await client.addNote(conversation.id, spamNote)
-              console.log(`Successfully added SPAM note to ${conversation.id}`)
-            } else {
-              console.log(`Skipped spam note for ${conversation.id} - already has spam note`)
-            }
+            // Add spam note
+            // TODO: Add duplicate check once we figure out the API issue
+            const spamNote = createSpamNote(sentiment, textToAnalyze)
+            console.log(`Adding spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
+            await client.addNote(conversation.id, spamNote)
+            console.log(`Successfully added SPAM note to ${conversation.id}`)
           } else if (!sentiment.isSpam && (sentiment.isAngry || sentiment.isHighUrgency)) {
             // Handle angry/urgent tags
             if (sentiment.isAngry) {
@@ -230,31 +219,12 @@ export default async function handler(
               taggedCount++
             }
             
-            // Always check if we need to add a note for angry/urgent tickets
-            console.log(`Checking notes for conversation ${conversation.id}...`)
-            const fullConversation = await client.getConversation(conversation.id)
-            console.log(`Notes found:`, fullConversation._embedded?.notes?.length || 0)
-            
-            // Debug: log all notes
-            if (fullConversation._embedded?.notes) {
-              fullConversation._embedded.notes.forEach((note: any, idx: number) => {
-                console.log(`Note ${idx}: ${note.body?.substring(0, 50)}...`)
-              })
-            }
-            
-            const hasExistingNote = fullConversation._embedded?.notes?.some((note: any) => 
-              note.body?.includes('ANGRY CUSTOMER DETECTED') || 
-              note.body?.includes('HIGH URGENCY CUSTOMER DETECTED')
-            )
-            
-            if (!hasExistingNote) {
-              const noteText = createAnalysisNote(sentiment, conversation)
-              console.log(`Adding note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
-              await client.addNote(conversation.id, noteText)
-              console.log(`Successfully added note to ticket ${conversation.id}`)
-            } else {
-              console.log(`Skipped note for ${conversation.id} - already has automated note`)
-            }
+            // Add note for angry/urgent tickets
+            // TODO: Add duplicate check once we figure out the API issue
+            const noteText = createAnalysisNote(sentiment, conversation)
+            console.log(`Adding note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
+            await client.addNote(conversation.id, noteText)
+            console.log(`Successfully added note to ticket ${conversation.id}`)
           } else if (sentiment.isSpam && !existingTags.includes('spam')) {
             // This block is now redundant - remove it
           }

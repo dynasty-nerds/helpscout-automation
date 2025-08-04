@@ -133,10 +133,8 @@ export class SentimentAnalyzer {
     ).length;
     const isSpam = spamCount >= 2 || lowerText.includes('guest post') || lowerText.includes('sponsored post');
     
-    // Count profanity occurrences
-    const profanityCount = this.profanityWords.filter(word =>
-      lowerText.includes(word)
-    ).length;
+    // Count profanity occurrences should use the same logic as finding
+    const profanityCount = profanityFound.length;
     
     // Count negative words and capture them
     const negativeWordsFound: string[] = []
