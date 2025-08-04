@@ -24,7 +24,6 @@ This file tracks learnings from agent responses to improve future AI suggestions
 - Always check subscription status first
 - Offer prorated refunds when appropriate
 - Explain billing cycles clearly
-- **Grandfathering Policy**: Pre-existing members keep their current pricing
 - Agents can process refunds and subscription changes directly
 
 #### Technical Issues
