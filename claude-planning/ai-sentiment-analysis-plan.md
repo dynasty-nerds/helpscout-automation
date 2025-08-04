@@ -13,14 +13,12 @@ Replace keyword-based anger detection with AI-powered sentiment analysis using O
 
 ## Implementation Steps
 
-### 1. Choose AI Provider
-- **Option A: OpenAI GPT-4**
-  - Pros: Fast, good at sentiment analysis, easy integration
-  - Cons: Cost per token, requires API key management
-  
-- **Option B: Claude API**
-  - Pros: Excellent at understanding context, good safety features
-  - Cons: Higher cost, rate limits
+### 1. AI Provider: Claude 3.5 Sonnet
+- **Use existing Claude 3.5 Sonnet setup** (same as response generation)
+- Already integrated and working well
+- Excellent at understanding context and nuance
+- Cost-effective at ~$0.01 per ticket
+- Can combine sentiment + response in single API call
 
 ### 2. Design System Prompt
 
