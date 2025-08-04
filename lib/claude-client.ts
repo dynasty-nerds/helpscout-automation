@@ -10,6 +10,13 @@ interface ClaudeResponse {
   responseType: string
   notesForAgent?: string
   usageString?: string
+  // Sentiment analysis fields
+  angerScore?: number
+  urgencyScore?: number
+  angerTriggers?: string[]
+  urgencyTriggers?: string[]
+  isSpam?: boolean
+  sentimentReasoning?: string
 }
 
 export class ClaudeClient {
@@ -72,8 +79,40 @@ ${conversationHistory}
 CUSTOMER'S LATEST MESSAGE:
 ${customerMessage}
 
+SENTIMENT ANALYSIS INSTRUCTIONS:
+Before generating the response, analyze the customer's sentiment using these guidelines:
+
+URGENCY (0-100) - Based on demands and time pressure, NOT the topic:
+- Demanding immediate action: "I need this NOW", "fix this today", "ASAP" (60-80)
+- Frustration about response times: "Why is nobody getting back to me?", "3rd email", "waiting for days" (40-60)
+- Multiple CAPS words (excluding abbreviations like ESPN, NFL, API) (add 10-20)
+- Time-sensitive language: "immediately", "right away", "urgent", "today" (40-60)
+- Threatening actions: "I'll dispute the charge", "canceling", "going to competitor" (60-80)
+- Exasperation questions: "What is going on?", "How is this still not fixed?" (40-60)
+
+ANGER (0-100) - Based on tone and language, NOT the topic:
+- Profanity/swearing (including masked: f***, hell, damn, WTF) (60-100)
+- Personal attacks: "horrible customer service", "you people are incompetent" (60-80)
+- Hostile language: "this is ridiculous", "what the hell", "absolutely unacceptable" (40-60)
+- Excessive CAPS LOCK (full sentences or many words) (40-60)
+- Mean-spirited sarcasm or passive-aggressive tone (40-60)
+- Name-calling or insults directed at company/support (60-80)
+
+Scoring Guidelines:
+- 0-20: Polite, patient, understanding tone
+- 21-40: Mildly frustrated but reasonable
+- 41-60: Clearly upset, demanding action
+- 61-80: Very angry/urgent, hostile tone
+- 81-100: Extreme anger, profanity, threats
+
 Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for line breaks within JSON string values, not actual newlines:
 {
+  "angerScore": 0-100,
+  "urgencyScore": 0-100,
+  "angerTriggers": ["specific phrases showing anger"],
+  "urgencyTriggers": ["specific phrases showing urgency"],
+  "isSpam": false,
+  "sentimentReasoning": "Brief explanation of sentiment scores",
   "suggestedResponse": "The actual response text starting with ${greeting}... Use \\n\\n for paragraph breaks",
   "confidence": 0.95,
   "referencedDocs": ["article names/titles of docs referenced"],
@@ -166,9 +205,24 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
             const notesMatch = jsonString.match(/"notesForAgent":\s*"((?:[^"\\]|\\.)*)"/)
             const notesForAgent = notesMatch?.[1]?.replace(/\\n/g, '\n') || ''
             
+            // Extract sentiment fields
+            const angerScoreMatch = jsonString.match(/"angerScore":\s*([\d.]+)/)
+            const angerScore = angerScoreMatch ? parseFloat(angerScoreMatch[1]) : undefined
+            
+            const urgencyScoreMatch = jsonString.match(/"urgencyScore":\s*([\d.]+)/)
+            const urgencyScore = urgencyScoreMatch ? parseFloat(urgencyScoreMatch[1]) : undefined
+            
+            const isSpamMatch = jsonString.match(/"isSpam":\s*(true|false)/)
+            const isSpam = isSpamMatch ? isSpamMatch[1] === 'true' : undefined
+            
+            const sentimentReasoningMatch = jsonString.match(/"sentimentReasoning":\s*"((?:[^"\\]|\\.)*)"/)
+            const sentimentReasoning = sentimentReasoningMatch?.[1]?.replace(/\\n/g, '\n') || undefined
+            
             // Extract arrays - use [\s\S] instead of . with s flag
             let referencedDocs: string[] = []
             let referencedUrls: string[] = []
+            let angerTriggers: string[] = []
+            let urgencyTriggers: string[] = []
             
             const docsMatch = jsonString.match(/"referencedDocs":\s*\[([\s\S]*?)\]/)
             if (docsMatch) {
@@ -180,6 +234,16 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
               referencedUrls = urlsMatch[1].match(/"([^"]*)"/g)?.map((s: string) => s.replace(/"/g, '')) || []
             }
             
+            const angerTriggersMatch = jsonString.match(/"angerTriggers":\s*\[([\s\S]*?)\]/)
+            if (angerTriggersMatch) {
+              angerTriggers = angerTriggersMatch[1].match(/"([^"]*)"/g)?.map((s: string) => s.replace(/"/g, '')) || []
+            }
+            
+            const urgencyTriggersMatch = jsonString.match(/"urgencyTriggers":\s*\[([\s\S]*?)\]/)
+            if (urgencyTriggersMatch) {
+              urgencyTriggers = urgencyTriggersMatch[1].match(/"([^"]*)"/g)?.map((s: string) => s.replace(/"/g, '')) || []
+            }
+            
             result = {
               suggestedResponse: suggestedResponse.replace(/\\n/g, '\n'),
               confidence,
@@ -187,7 +251,13 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
               referencedUrls,
               reasoning,
               responseType,
-              notesForAgent
+              notesForAgent,
+              angerScore,
+              urgencyScore,
+              angerTriggers,
+              urgencyTriggers,
+              isSpam,
+              sentimentReasoning
             }
             
             console.log('Manual extraction successful')
@@ -213,7 +283,13 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
         reasoning: result.reasoning,
         responseType: result.responseType,
         notesForAgent: result.notesForAgent || '',
-        usageString
+        usageString,
+        angerScore: result.angerScore,
+        urgencyScore: result.urgencyScore,
+        angerTriggers: result.angerTriggers || [],
+        urgencyTriggers: result.urgencyTriggers || [],
+        isSpam: result.isSpam,
+        sentimentReasoning: result.sentimentReasoning
       }
 
     } catch (error: any) {

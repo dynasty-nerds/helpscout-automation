@@ -86,10 +86,17 @@ interface AnalysisResult {
   noteText: string
   suggestedResponse?: string
   hasAIResponse: boolean
+  aiSentiment?: {
+    angerScore: number
+    urgencyScore: number
+    isAngry: boolean
+    isHighUrgency: boolean
+    isSpam: boolean
+  }
 }
 
 async function createAnalysisNote(
-  sentiment: SentimentResult, 
+  keywordSentiment: SentimentResult, 
   conversation: any, 
   claudeClient?: ClaudeClient | null,
   docsClient?: HelpScoutDocsClient | null
@@ -113,6 +120,10 @@ async function createAnalysisNote(
   
   const subject = (conversation.subject || '').toLowerCase()
   const combinedText = subject + ' ' + messageContent
+  
+  // We'll use the keywordSentiment for initial categorization
+  // AI sentiment will override these values when the response is generated
+  let sentiment = keywordSentiment // Use keyword sentiment as fallback
   
   // Generate summary based on issue category and content
   if (sentiment.issueCategory === 'refund-cancellation') {
@@ -335,6 +346,71 @@ async function createAnalysisNote(
       )
       console.log(`AI response generated for conversation ${conversation.id}: ${aiResponse.suggestedResponse ? aiResponse.suggestedResponse.substring(0, 50) + '...' : 'No response'}`)
       
+      // Use AI sentiment scores if available
+      if (aiResponse.angerScore !== undefined && aiResponse.urgencyScore !== undefined) {
+        console.log(`Using AI sentiment scores - Anger: ${aiResponse.angerScore}, Urgency: ${aiResponse.urgencyScore}`)
+        console.log(`Keyword sentiment scores - Anger: ${keywordSentiment.angerScore}, Urgency: ${keywordSentiment.urgencyScore}`)
+        console.log(`AI vs Keyword difference - Anger: ${Math.abs((aiResponse.angerScore || 0) - keywordSentiment.angerScore)}, Urgency: ${Math.abs((aiResponse.urgencyScore || 0) - keywordSentiment.urgencyScore)}`)
+        
+        // Override the header with AI sentiment scores
+        const aiSentiment = {
+          angerScore: aiResponse.angerScore || 0,
+          urgencyScore: aiResponse.urgencyScore || 0,
+          isAngry: (aiResponse.angerScore || 0) >= 40,
+          isHighUrgency: (aiResponse.urgencyScore || 0) >= 60,
+          isSpam: aiResponse.isSpam || false
+        }
+        
+        // Update header based on AI scores
+        let aiHeader = ''
+        if (aiSentiment.isAngry) {
+          aiHeader = `😡 ANGRY (Anger: ${aiSentiment.angerScore}/100, Urgency: ${aiSentiment.urgencyScore}/100)`
+        } else if (aiSentiment.isHighUrgency) {
+          aiHeader = `❗ HIGH URGENCY (Urgency: ${aiSentiment.urgencyScore}/100, Anger: ${aiSentiment.angerScore}/100)`
+        } else {
+          aiHeader = `💬 STANDARD (Urgency: ${aiSentiment.urgencyScore}/100, Anger: ${aiSentiment.angerScore}/100)`
+        }
+        
+        // Replace the header in parts array
+        parts[1] = aiHeader
+        
+        // Add AI sentiment analysis details
+        if (aiResponse.sentimentReasoning) {
+          parts.splice(2, 0, `\n🤖 AI Sentiment Analysis: ${aiResponse.sentimentReasoning}`)
+        }
+        
+        // Replace triggers section with AI triggers if available
+        if (aiResponse.angerTriggers && aiResponse.angerTriggers.length > 0) {
+          const triggersIndex = parts.findIndex(p => p.includes('Triggers Detected:'))
+          if (triggersIndex >= 0) {
+            // Remove old triggers section
+            let i = triggersIndex
+            while (i < parts.length && !parts[i].startsWith('\n')) {
+              parts.splice(i, 1)
+            }
+            
+            // Add new AI-based triggers
+            parts.splice(triggersIndex, 0, '\nAI-Detected Triggers:')
+            if (aiResponse.angerTriggers.length > 0) {
+              parts.splice(triggersIndex + 1, 0, `- Anger Triggers: ${aiResponse.angerTriggers.join(', ')}`)
+            }
+            if (aiResponse.urgencyTriggers && aiResponse.urgencyTriggers.length > 0) {
+              parts.splice(triggersIndex + 2, 0, `- Urgency Triggers: ${aiResponse.urgencyTriggers.join(', ')}`)
+            }
+          }
+        }
+        
+        // Update sentiment object for return value
+        sentiment = {
+          ...sentiment,
+          angerScore: aiSentiment.angerScore,
+          urgencyScore: aiSentiment.urgencyScore,
+          isAngry: aiSentiment.isAngry,
+          isHighUrgency: aiSentiment.isHighUrgency,
+          isSpam: aiSentiment.isSpam
+        }
+      }
+      
       // Store the suggested response separately
       suggestedResponse = aiResponse.suggestedResponse
       hasAIResponse = !!aiResponse.suggestedResponse
@@ -393,7 +469,14 @@ async function createAnalysisNote(
   return {
     noteText: parts.join('\n'),
     suggestedResponse,
-    hasAIResponse
+    hasAIResponse,
+    aiSentiment: sentiment.angerScore !== keywordSentiment.angerScore ? {
+      angerScore: sentiment.angerScore,
+      urgencyScore: sentiment.urgencyScore,
+      isAngry: sentiment.isAngry,
+      isHighUrgency: sentiment.isHighUrgency,
+      isSpam: sentiment.isSpam
+    } : undefined
   }
 }
 
@@ -616,6 +699,33 @@ export default async function handler(
             if (!hasExistingAINote) {
               // Generate AI response and add note for ALL non-spam tickets
               const analysisResult = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
+              
+              // Use AI sentiment if available for tagging
+              let finalSentiment = sentiment
+              if (analysisResult.aiSentiment) {
+                console.log(`Using AI sentiment for tagging - Anger: ${analysisResult.aiSentiment.angerScore}, Urgency: ${analysisResult.aiSentiment.urgencyScore}`)
+                finalSentiment = {
+                  ...sentiment,
+                  ...analysisResult.aiSentiment
+                }
+                
+                // Apply tags based on AI sentiment if not in dry run and not already tagged
+                if (!dryRun && !tagged) {
+                  if (finalSentiment.isAngry && !hasAngryTag) {
+                    await client.addTag(conversation.id, 'angry-customer')
+                    console.log(`Added angry-customer tag based on AI sentiment`)
+                    tagged = true
+                  }
+                  if ((finalSentiment.isAngry || finalSentiment.isHighUrgency) && !hasUrgencyTag) {
+                    await client.addTag(conversation.id, 'high-urgency')
+                    console.log(`Added high-urgency tag based on AI sentiment`)
+                    tagged = true
+                  }
+                  if (tagged) {
+                    taggedCount++
+                  }
+                }
+              }
               if (dryRun) {
                 console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${analysisResult.noteText ? analysisResult.noteText.substring(0, 100) + '...' : 'No note'}`)
                 if (analysisResult.hasAIResponse && analysisResult.suggestedResponse) {
@@ -669,13 +779,47 @@ export default async function handler(
         }
       }
       
+      // Get final sentiment scores (AI if available, keyword otherwise)
+      let finalScores = {
+        urgencyScore: sentiment.urgencyScore,
+        angerScore: sentiment.angerScore
+      }
+      
+      // Check if we processed AI sentiment for this ticket
+      if (!sentiment.isSpam) {
+        try {
+          const threadsData = await client.getConversationThreads(conversation.id)
+          const notes = threadsData._embedded?.threads?.filter((thread: any) => thread.type === 'note') || []
+          const latestAINote = notes.find((note: any) => 
+            note.body?.includes('AI Sentiment Analysis:') ||
+            note.body?.includes('ANGRY (Anger:') ||
+            note.body?.includes('HIGH URGENCY (Urgency:')
+          )
+          
+          if (latestAINote?.body) {
+            // Extract AI scores from note if available
+            const angerMatch = latestAINote.body.match(/Anger:\s*(\d+)\/100/)
+            const urgencyMatch = latestAINote.body.match(/Urgency:\s*(\d+)\/100/)
+            
+            if (angerMatch && urgencyMatch) {
+              finalScores.angerScore = parseInt(angerMatch[1])
+              finalScores.urgencyScore = parseInt(urgencyMatch[1])
+              console.log(`Using AI scores from note for reporting - Anger: ${finalScores.angerScore}, Urgency: ${finalScores.urgencyScore}`)
+            }
+          }
+        } catch (err) {
+          // Fall back to keyword scores if we can't get AI scores
+          console.error(`Could not retrieve AI scores for ${conversation.id}:`, err)
+        }
+      }
+      
       urgentTickets.push({
         conversationId: conversation.id,
         customerEmail: conversation.primaryCustomer?.email || 'Unknown',
         subject: conversation.subject || 'No subject',
         preview: conversation.preview || '',
-        urgencyScore: sentiment.urgencyScore,
-        angerScore: sentiment.angerScore,
+        urgencyScore: finalScores.urgencyScore,
+        angerScore: finalScores.angerScore,
         categories: sentiment.categories,
         indicators: sentiment.indicators,
         createdAt: conversation.createdAt,
