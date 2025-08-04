@@ -43,6 +43,7 @@ export class HelpScoutClient {
     await this.authenticate()
 
     // Get both active and pending conversations (not closed or spam)
+    console.log('Fetching conversations with size=100...')
     const response = await axios.get(`${this.baseURL}/conversations`, {
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -54,6 +55,7 @@ export class HelpScoutClient {
       },
     })
 
+    console.log(`API returned ${response.data._embedded?.conversations?.length || 0} conversations`)
     return response.data
   }
 
