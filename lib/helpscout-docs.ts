@@ -2,11 +2,11 @@ import axios from 'axios'
 
 interface DocsArticle {
   id: string
-  title: string
-  content: string
-  url: string
+  name: string
+  text: string
+  publicUrl: string
   collectionId: string
-  categoryId?: string
+  categories?: string[]
   status: string
   updatedAt: string
 }
@@ -88,11 +88,18 @@ export class HelpScoutDocsClient {
           })
           const articlesList = data.articles?.items || data.articles || data.items || []
           console.log(`Collection "${collection.name}" (${collection.id}): ${articlesList.length} published articles`)
-          const collectionArticles = articlesList.map((article: any) => ({
-            ...article,
-            collectionId: collection.id
-          }))
-          articles.push(...collectionArticles)
+          
+          // Fetch full article details for each article reference
+          for (const articleRef of articlesList) {
+            try {
+              const fullArticle = await this.getArticle(articleRef.id)
+              if (fullArticle) {
+                articles.push(fullArticle)
+              }
+            } catch (error) {
+              console.error(`Failed to fetch article ${articleRef.id}:`, error)
+            }
+          }
         } catch (error) {
           console.error(`Failed to fetch articles for collection ${collection.id}:`, error)
           // Continue with other collections
@@ -106,7 +113,20 @@ export class HelpScoutDocsClient {
   async getArticle(articleId: string): Promise<DocsArticle | null> {
     try {
       const data = await this.makeRequest(`/articles/${articleId}`)
-      return data.article || null
+      const article = data.article
+      if (!article) return null
+      
+      // Map the article fields to our interface
+      return {
+        id: article.id,
+        name: article.name,
+        text: article.text || '',
+        publicUrl: article.publicUrl,
+        collectionId: article.collectionId,
+        categories: article.categories,
+        status: article.status,
+        updatedAt: article.updatedAt || article.createdAt
+      }
     } catch (error) {
       console.error(`Failed to fetch article ${articleId}:`, error)
       return null
@@ -142,19 +162,19 @@ export class HelpScoutDocsClient {
     // Score articles based on keyword matches
     const scoredArticles = allArticles.map(article => {
       let score = 0
-      const title = article.title || ''
-      const content = article.content || ''
+      const name = article.name || ''
+      const text = article.text || ''
       
       // Log warning if article is missing required fields
-      if (!article.title || !article.content) {
-        console.warn(`Article ${article.id} missing title or content - title: ${!!article.title}, content: ${!!article.content}`)
+      if (!article.name || !article.text) {
+        console.warn(`Article ${article.id} missing name or text - name: ${!!article.name}, text length: ${article.text?.length || 0}`)
       }
       
-      const articleText = (title + ' ' + content).toLowerCase()
+      const articleText = (name + ' ' + text).toLowerCase()
       
-      // Title matches get higher score
+      // Title/name matches get higher score
       keyTerms.forEach(term => {
-        if (title.toLowerCase().includes(term)) {
+        if (name.toLowerCase().includes(term)) {
           score += 10
         }
         if (articleText.includes(term)) {

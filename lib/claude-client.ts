@@ -28,7 +28,7 @@ export class ClaudeClient {
     
     // Format documentation for context
     const docsContext = relevantDocs.map(doc => 
-      `**${doc.title}**\n${doc.content}\nURL: ${doc.url}\n`
+      `**${doc.name || doc.title}**\n${doc.text || doc.content || ''}\nURL: ${doc.publicUrl || doc.url || ''}\n`
     ).join('\n---\n')
 
     const greeting = customerFirstName ? `Hey ${customerFirstName},` : 'Hey,'
