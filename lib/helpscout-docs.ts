@@ -142,11 +142,19 @@ export class HelpScoutDocsClient {
     // Score articles based on keyword matches
     const scoredArticles = allArticles.map(article => {
       let score = 0
-      const articleText = (article.title + ' ' + article.content).toLowerCase()
+      const title = article.title || ''
+      const content = article.content || ''
+      
+      // Log warning if article is missing required fields
+      if (!article.title || !article.content) {
+        console.warn(`Article ${article.id} missing title or content - title: ${!!article.title}, content: ${!!article.content}`)
+      }
+      
+      const articleText = (title + ' ' + content).toLowerCase()
       
       // Title matches get higher score
       keyTerms.forEach(term => {
-        if (article.title.toLowerCase().includes(term)) {
+        if (title.toLowerCase().includes(term)) {
           score += 10
         }
         if (articleText.includes(term)) {
