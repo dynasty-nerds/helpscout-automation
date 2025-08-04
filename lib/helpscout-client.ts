@@ -50,7 +50,7 @@ export class HelpScoutClient {
       params: {
         status: 'active,pending',  // Both active and pending statuses
         embed: 'threads',
-        size: 50,  // Increase from default 25 to 50
+        size: 100,  // Max page size to ensure we get all active tickets
       },
     })
 
