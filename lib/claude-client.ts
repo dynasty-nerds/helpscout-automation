@@ -120,11 +120,11 @@ Please respond with a JSON object in this exact format:
         console.error('JSON parse error:', parseError.message)
         console.error('Full JSON string:', jsonString)
         
-        // Try to fix common JSON issues
-        // Replace actual newlines in strings with \n
-        jsonString = jsonString.replace(/\n(?=(?:[^"]*"[^"]*")*[^"]*$)/g, '\\n')
-          .replace(/\r(?=(?:[^"]*"[^"]*")*[^"]*$)/g, '\\r')
-          .replace(/\t(?=(?:[^"]*"[^"]*")*[^"]*$)/g, '\\t')
+        // Try to fix common JSON issues - properly escape newlines in quoted strings
+        // This more robust approach handles nested quotes and escapes
+        jsonString = jsonString.replace(/("(?:[^"\\]|\\.)*")/g, (match) => {
+          return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+        })
         
         try {
           result = JSON.parse(jsonString)
