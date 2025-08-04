@@ -223,7 +223,20 @@ async function createAnalysisNote(
       parts.push(`\n[AI Confidence: ${Math.round(aiResponse.confidence * 100)}% | Type: ${aiResponse.responseType}]`)
       
       if (aiResponse.referencedDocs.length > 0) {
-        parts.push(`[Referenced: ${aiResponse.referencedDocs.join(', ')}]`)
+        parts.push(`\n📚 Referenced Documentation:`)
+        aiResponse.referencedDocs.forEach((doc, index) => {
+          const url = aiResponse.referencedUrls?.[index] || ''
+          if (url) {
+            parts.push(`- ${doc}: ${url}`)
+          } else {
+            parts.push(`- ${doc}`)
+          }
+        })
+      }
+      
+      if (aiResponse.notesForAgent) {
+        parts.push(`\n📝 Notes for Support Team:`)
+        parts.push(aiResponse.notesForAgent)
       }
       
     } catch (error: any) {

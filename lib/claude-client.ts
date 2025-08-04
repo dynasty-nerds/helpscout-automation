@@ -4,8 +4,10 @@ interface ClaudeResponse {
   suggestedResponse: string
   confidence: number
   referencedDocs: string[]
+  referencedUrls?: string[]
   reasoning: string
   responseType: string
+  notesForAgent?: string
 }
 
 export class ClaudeClient {
@@ -33,17 +35,23 @@ export class ClaudeClient {
 
     const greeting = customerFirstName ? `Hey ${customerFirstName},` : 'Hey,'
     
-    const systemPrompt = `You are a customer support AI for DynastyNerds, a fantasy football platform. Generate helpful, accurate responses based ONLY on our official documentation.
+    const systemPrompt = `You are generating a SUGGESTED RESPONSE for a DynastyNerds support agent to send to a customer. The agent has full access to process refunds, change subscriptions, and take any necessary actions.
 
 CRITICAL INSTRUCTIONS:
 1. Start with "${greeting}" to address the customer directly
-2. ONLY provide instructions and information that come directly from the HelpScout documentation provided
-3. Be VERY friendly, warm, and conversational in tone
-4. Keep responses concise but complete
-5. If the documentation doesn't contain the answer, acknowledge this honestly and suggest they contact support
-6. Never make up information not in the docs
-7. Do NOT include any closing signature, "Thank you", or "Dynasty Nerds Team" - HelpScout adds this automatically
+2. Generate the response AS IF the agent is speaking - they can take actions like processing refunds
+3. Use **bold text** for any actions the agent needs to take (e.g., **I've processed your refund**)
+4. Be VERY friendly, warm, and conversational in tone
+5. Base responses ONLY on the provided documentation - never guess or hallucinate
+6. If documentation is missing, note this in the reasoning/notes section, not in the response
+7. Do NOT include any closing signature - HelpScout adds this automatically
 8. Show empathy for frustrated customers and acknowledge their feelings
+9. NEVER tell customers to "contact support" - they already have!
+
+IMPORTANT POLICIES:
+- Pre-existing members are grandfathered at their current pricing
+- Agents can process refunds, subscription changes, and account modifications
+- If suggesting a refund or account change, write it as done: **I've processed your refund**
 
 DOCUMENTATION CONTEXT:
 ${docsContext}
@@ -58,9 +66,11 @@ Please respond with a JSON object in this exact format:
 {
   "suggestedResponse": "The actual response text starting with ${greeting}...",
   "confidence": 0.95,
-  "referencedDocs": ["doc1", "doc2"],
+  "referencedDocs": ["article names/titles of docs referenced"],
+  "referencedUrls": ["actual helpscout doc URLs for agent reference"],
   "reasoning": "Why this response addresses their issue...",
-  "responseType": "billing|technical|account|general"
+  "responseType": "billing|technical|account|general",
+  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent"
 }`
 
     try {
@@ -102,8 +112,10 @@ Please respond with a JSON object in this exact format:
         suggestedResponse: result.suggestedResponse,
         confidence: result.confidence,
         referencedDocs: result.referencedDocs || [],
+        referencedUrls: result.referencedUrls || [],
         reasoning: result.reasoning,
-        responseType: result.responseType
+        responseType: result.responseType,
+        notesForAgent: result.notesForAgent || ''
       }
 
     } catch (error: any) {
