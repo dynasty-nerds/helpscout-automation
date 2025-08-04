@@ -396,6 +396,9 @@ export default async function handler(
             if (tagged && !dryRun) {
               taggedCount++
               
+              // TODO: Teams notifications not yet set up - webhook URL needs to be configured
+              // Commenting out until Teams integration is ready
+              /*
               // Send Teams notification for newly tagged urgent/angry tickets
               if (teamsClient) {
                 try {
@@ -413,6 +416,7 @@ export default async function handler(
                   console.error(`Failed to send Teams notification for ${conversation.id}:`, error)
                 }
               }
+              */
             }
           }
           
