@@ -222,6 +222,7 @@ export default async function handler(
             tagged = true
             taggedCount++
             console.log(`Tagged SPAM ${conversation.id}`)
+          }
           // If scores are same or lower, do nothing
         } catch (error) {
           console.error(`Failed to process conversation ${conversation.id}:`, error)
