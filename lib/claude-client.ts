@@ -44,16 +44,16 @@ export class ClaudeClient {
 CRITICAL INSTRUCTIONS:
 1. Start with "${greeting}" followed by TWO line breaks for readability
 2. Generate the response AS IF the agent is speaking - they can take actions like processing refunds
-3. Do NOT use bold text or markdown formatting - HelpScout notes don't support it
+3. Do NOT use bold text or markdown formatting
 4. Be VERY friendly, warm, and conversational in tone
 5. Base responses ONLY on the provided documentation - never guess or hallucinate
 6. If documentation is missing, note this in the reasoning/notes section, not in the response
 7. Do NOT include any closing signature - HelpScout adds this automatically
 8. Show empathy for frustrated customers and acknowledge their feelings
 9. NEVER tell customers to "contact support" - they already have!
-10. Use TWO line breaks between paragraphs for easy readability
+10. Use <br><br> for line breaks instead of newlines (HelpScout uses HTML)
 11. IMPORTANT: Complete each sentence before adding line breaks - never break in the middle of a sentence
-12. When mentioning URLs, write them as plain text (e.g., dynastynerds.com/my-account) - HelpScout will auto-link them
+12. When mentioning URLs, format them as HTML links: <a href="https://dynastynerds.com/my-account">dynastynerds.com/my-account</a>
 
 IMPORTANT POLICIES:
 - Agents can process refunds, subscription changes, and account modifications
