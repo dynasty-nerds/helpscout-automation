@@ -525,7 +525,7 @@ export default async function handler(
                   console.log(`[DRY RUN] Would add spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
                 } else {
                   console.log(`Adding spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
-                  await client.addNote(conversation.id, spamNote)
+                  await client.addNote(conversation.id, spamNote, true, conversation.status)
                   console.log(`Successfully added SPAM note to ${conversation.id}`)
                 }
               } else {
@@ -536,7 +536,7 @@ export default async function handler(
               // If we can't check, add the note anyway to ensure it's there
               const spamNote = createSpamNote(sentiment, textToAnalyze)
               if (!dryRun) {
-                await client.addNote(conversation.id, spamNote)
+                await client.addNote(conversation.id, spamNote, true, conversation.status)
               }
             }
           } else if (!sentiment.isSpam && (sentiment.isAngry || sentiment.isHighUrgency)) {
@@ -623,7 +623,7 @@ export default async function handler(
                 }
               } else {
                 console.log(`Adding note to ${conversation.id}. Note preview: ${analysisResult.noteText ? analysisResult.noteText.substring(0, 100) + '...' : 'No note'}`)
-                await client.addNote(conversation.id, analysisResult.noteText)
+                await client.addNote(conversation.id, analysisResult.noteText, true, conversation.status)
                 console.log(`Successfully added note to ticket ${conversation.id}`)
                 
                 // Create draft reply if we have an AI response and no existing draft
@@ -631,8 +631,10 @@ export default async function handler(
                   const customerId = conversation.primaryCustomer?.id
                   if (customerId) {
                     try {
-                      await client.createDraftReply(conversation.id, customerId, analysisResult.suggestedResponse)
-                      console.log(`Successfully created draft reply for ticket ${conversation.id}`)
+                      // Preserve the existing assignee (if any) from the conversation
+                      const assignedUserId = conversation.assignee?.id || 0
+                      await client.createDraftReply(conversation.id, customerId, analysisResult.suggestedResponse, 'closed', assignedUserId)
+                      console.log(`Successfully created draft reply for ticket ${conversation.id} with status: closed and assignee: ${assignedUserId || 'unassigned'}`)
                     } catch (error) {
                       console.error(`Failed to create draft reply for ${conversation.id}:`, error)
                     }

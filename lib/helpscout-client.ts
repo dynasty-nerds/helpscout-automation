@@ -225,18 +225,30 @@ export class HelpScoutClient {
     }
   }
 
-  async createDraftReply(conversationId: number, customerId: number, text: string) {
+  async createDraftReply(conversationId: number, customerId: number, text: string, status?: string, assignTo?: number | null) {
     await this.authenticate()
+
+    const requestData: any = {
+      customer: {
+        id: customerId
+      },
+      text: text,
+      draft: true
+    }
+
+    // Set status if provided (e.g., 'closed')
+    if (status) {
+      requestData.status = status
+    }
+
+    // Set assignee - use 0 to unassign
+    if (assignTo !== undefined) {
+      requestData.assignTo = assignTo === null ? 0 : assignTo
+    }
 
     await axios.post(
       `${this.baseURL}/conversations/${conversationId}/reply`,
-      {
-        customer: {
-          id: customerId
-        },
-        text: text,
-        draft: true
-      },
+      requestData,
       {
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -246,13 +258,37 @@ export class HelpScoutClient {
     )
   }
 
-  async addNote(conversationId: number, text: string) {
+  async addNote(conversationId: number, text: string, preserveStatus: boolean = false, currentStatus?: string) {
     await this.authenticate()
 
     await axios.post(
       `${this.baseURL}/conversations/${conversationId}/notes`,
       {
         text,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+    
+    // If we need to preserve the status, update it back to what it was
+    if (preserveStatus && currentStatus) {
+      await this.updateConversationStatus(conversationId, currentStatus)
+    }
+  }
+
+  async updateConversationStatus(conversationId: number, status: string) {
+    await this.authenticate()
+
+    await axios.patch(
+      `${this.baseURL}/conversations/${conversationId}`,
+      {
+        op: 'replace',
+        path: '/status',
+        value: status,
       },
       {
         headers: {
