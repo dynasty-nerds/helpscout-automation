@@ -772,7 +772,7 @@ export default async function handler(
             } catch (error) {
               console.error(`Error checking/adding spam note for ${conversation.id}:`, error)
               // If we can't check, add the note anyway to ensure it's there
-              const spamNote = createSpamNote(sentiment, textToAnalyze)
+              const spamNote = createSpamNote(keywordSentiment, textToAnalyze)
               if (!dryRun) {
                 await client.addNote(conversation.id, spamNote, true, conversation.status)
               }
