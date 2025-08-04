@@ -31,7 +31,7 @@ export class ClaudeClient {
       `**${doc.title}**\n${doc.content}\nURL: ${doc.url}\n`
     ).join('\n---\n')
 
-    const greeting = customerFirstName ? `Hey ${customerFirstName},` : 'Hey there,'
+    const greeting = customerFirstName ? `Hey ${customerFirstName},` : 'Hey,'
     
     const systemPrompt = `You are a customer support AI for DynastyNerds, a fantasy football platform. Generate helpful, accurate responses based ONLY on our official documentation.
 
