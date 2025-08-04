@@ -93,7 +93,10 @@ export class SentimentAnalyzer {
     // Check for profanity and capture matches with context
     const profanityFound: string[] = []
     this.profanityWords.forEach(word => {
-      if (lowerText.includes(word)) {
+      // Use word boundary regex to match whole words only
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      const matches = text.match(regex);
+      if (matches) {
         // Find the word in context (up to 30 chars before and after)
         const index = text.toLowerCase().indexOf(word)
         const start = Math.max(0, index - 30)
@@ -138,7 +141,10 @@ export class SentimentAnalyzer {
     // Count negative words and capture them
     const negativeWordsFound: string[] = []
     this.negativeWords.forEach(word => {
-      if (lowerText.includes(word)) {
+      // Use word boundary regex to match whole words only
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      const matches = text.match(regex);
+      if (matches) {
         const index = text.toLowerCase().indexOf(word)
         const start = Math.max(0, index - 20)
         const end = Math.min(text.length, index + word.length + 20)

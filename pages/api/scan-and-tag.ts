@@ -59,16 +59,25 @@ function createAnalysisNote(sentiment: SentimentResult, conversation: any): stri
   // Triggers detected section
   parts.push('\nTriggers Detected:')
   
-  if (sentiment.indicators.hasProfanity) {
-    parts.push(`- Profanity Detected (${sentiment.indicators.profanityCount} instances)`)
-    sentiment.indicators.profanityFound.forEach(quote => {
-      parts.push(`  ${quote}`)
-    })
-  }
-  
-  if (sentiment.indicators.hasNegativeWords) {
-    const total = sentiment.indicators.negativeWordCount + sentiment.indicators.negativeContextCount
-    parts.push(`- Negative Sentiment Words Detected (${total} instances)`)
+  // Combine profanity and negative sentiment into one section
+  if (sentiment.indicators.hasProfanity || sentiment.indicators.hasNegativeWords) {
+    const hasActualProfanity = sentiment.indicators.hasProfanity
+    const hasNegativeSentiment = sentiment.indicators.negativeContextCount > 0 || sentiment.indicators.negativeWordCount > 0
+    
+    if (hasActualProfanity && hasNegativeSentiment) {
+      parts.push(`- Profanity & Negative Language Detected`)
+    } else if (hasActualProfanity) {
+      parts.push(`- Profanity Detected (${sentiment.indicators.profanityCount} instances)`)
+    } else {
+      parts.push(`- Negative Language Detected`)
+    }
+    
+    // Show profanity quotes
+    if (sentiment.indicators.hasProfanity) {
+      sentiment.indicators.profanityFound.forEach(quote => {
+        parts.push(`  ${quote}`)
+      })
+    }
     
     // Show negative context quotes if criticizing service
     if (sentiment.indicators.negativeContextCount > 0) {
@@ -77,8 +86,8 @@ function createAnalysisNote(sentiment: SentimentResult, conversation: any): stri
       })
     }
     
-    // Show other negative words if not too many
-    if (sentiment.indicators.negativeWordCount > 0 && sentiment.indicators.negativeWordsFound.length <= 3) {
+    // Show other negative words if not too many and no profanity
+    if (!hasActualProfanity && sentiment.indicators.negativeWordCount > 0 && sentiment.indicators.negativeWordsFound.length <= 3) {
       sentiment.indicators.negativeWordsFound.forEach(quote => {
         parts.push(`  ${quote}`)
       })
