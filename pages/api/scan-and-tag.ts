@@ -417,7 +417,7 @@ export default async function handler(
         // First handle tagging for urgent/angry/spam tickets
         if (sentiment.isHighUrgency || sentiment.isAngry || sentiment.isSpam) {
           // Handle spam separately
-          if (sentiment.isSpam && !existingTags.includes('spam')) {
+          if (sentiment.isSpam && !existingTagNames.includes('spam')) {
             if (!dryRun) {
               // Tag as spam
               await client.addTag(conversation.id, 'spam')
@@ -573,7 +573,7 @@ export default async function handler(
       
       // Track ticket for reporting
       const wouldTag: string[] = []
-      if (sentiment.isSpam && !existingTags.includes('spam')) {
+      if (sentiment.isSpam && !existingTagNames.includes('spam')) {
         wouldTag.push('spam')
       } else if (!sentiment.isSpam) {
         if (sentiment.isAngry) {
