@@ -209,10 +209,24 @@ export class SentimentAnalyzer {
     // Urgency keywords
     urgencyScore += foundUrgencyKeywords.length * 15;
     
-    // If they mention being charged multiple times or waiting long
+    // If they mention being charged, paying for service, or waiting long
     if (lowerText.includes('still being charged') || lowerText.includes('months ago') || 
-        lowerText.includes('weeks ago') || lowerText.includes('multiple times')) {
+        lowerText.includes('weeks ago') || lowerText.includes('multiple times') ||
+        lowerText.includes('paying for') || lowerText.includes('i\'m paying') ||
+        lowerText.includes('not heard back') || lowerText.includes('no response') ||
+        lowerText.includes('still have not heard')) {
       urgencyScore += 30;
+    }
+    
+    // Check for words in ALL CAPS (excluding common abbreviations)
+    const allCapsWords = text.match(/\b[A-Z]{2,}\b/g) || [];
+    const nonAbbrevCaps = allCapsWords.filter(word => 
+      !['GM', 'API', 'FAQ', 'URL', 'ID', 'UI', 'SEO', 'CEO', 'USA', 'UK', 'MFL', 'NFL'].includes(word) &&
+      word.length > 2
+    );
+    if (nonAbbrevCaps.length > 0) {
+      angerScore += 10 * nonAbbrevCaps.length;
+      urgencyScore += 10 * nonAbbrevCaps.length;
     }
     
     // If angry, it's also urgent
