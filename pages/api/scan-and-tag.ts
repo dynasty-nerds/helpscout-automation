@@ -437,11 +437,13 @@ export default async function handler(
               
               if (hasExistingNote) {
                 console.log(`Skipped note for ${conversation.id} - already has automated note`)
-              } else if (existingNotes.length > 0) {
-                console.log(`Conversation ${conversation.id} has ${existingNotes.length} notes but none match our pattern`)
-                console.log(`First note preview: ${existingNotes[0].body?.substring(0, 100)}...`)
               } else {
-                // Only call Claude API if we're actually going to add a note
+                // Log if there are other types of notes (like technical/beacon info)
+                if (existingNotes.length > 0) {
+                  console.log(`Conversation ${conversation.id} has ${existingNotes.length} other notes (likely technical/beacon info)`)
+                }
+                
+                // Generate AI response and add note
                 const noteText = await createAnalysisNote(sentiment, conversation, claudeClient, docsClient)
                 if (dryRun) {
                   console.log(`[DRY RUN] Would add note to ${conversation.id}. Note preview: ${noteText.substring(0, 100)}...`)
