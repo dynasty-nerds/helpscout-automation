@@ -159,18 +159,36 @@ export class HelpScoutClient {
   async addTag(conversationId: number, tag: string) {
     await this.authenticate()
 
-    await axios.put(
-      `${this.baseURL}/conversations/${conversationId}/tags`,
-      {
-        tags: [tag],
-      },
+    // First get existing tags
+    const conversation = await axios.get(
+      `${this.baseURL}/conversations/${conversationId}`,
       {
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json',
         },
       }
     )
+
+    const existingTags = conversation.data.tags || []
+    
+    // Only add if tag doesn't already exist
+    if (!existingTags.includes(tag)) {
+      const updatedTags = [...existingTags, tag]
+      
+      // Update with all tags (existing + new)
+      await axios.put(
+        `${this.baseURL}/conversations/${conversationId}/tags`,
+        {
+          tags: updatedTags,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+    }
   }
 
   async createDraftReply(conversationId: number, customerId: number, text: string) {

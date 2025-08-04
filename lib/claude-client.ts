@@ -53,6 +53,7 @@ CRITICAL INSTRUCTIONS:
 9. NEVER tell customers to "contact support" - they already have!
 10. Use TWO line breaks between paragraphs for easy readability
 11. IMPORTANT: Complete each sentence before adding line breaks - never break in the middle of a sentence
+12. When mentioning URLs, write them as plain text (e.g., dynastynerds.com/my-account) - HelpScout will auto-link them
 
 IMPORTANT POLICIES:
 - Agents can process refunds, subscription changes, and account modifications

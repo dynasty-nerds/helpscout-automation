@@ -226,7 +226,12 @@ async function createAnalysisNote(
       
       // Get customer first name
       console.log(`Primary customer data:`, JSON.stringify(conversation.primaryCustomer || {}, null, 2))
-      const customerFirstName = conversation.primaryCustomer?.firstName || conversation.primaryCustomer?.first || undefined
+      let customerFirstName = conversation.primaryCustomer?.firstName || conversation.primaryCustomer?.first || undefined
+      
+      // Capitalize first letter of name
+      if (customerFirstName && typeof customerFirstName === 'string') {
+        customerFirstName = customerFirstName.charAt(0).toUpperCase() + customerFirstName.slice(1).toLowerCase()
+      }
       
       // Generate AI response
       console.log(`Calling Claude API for conversation ${conversation.id}`)
