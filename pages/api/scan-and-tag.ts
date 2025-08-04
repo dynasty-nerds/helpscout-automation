@@ -73,7 +73,8 @@ function createSpamNote(sentiment: SentimentResult, text: string): string {
     confidence = 'Medium'
   }
   
-  return `🗑️ SPAM DETECTED (${confidence} confidence)
+  return `📝 Guest post/SEO spam request
+🗑️ SPAM DETECTED (${confidence} confidence)
 
 Reasons:
 ${reasons.join('\n')}
@@ -95,15 +96,66 @@ async function createAnalysisNote(
 ): Promise<AnalysisResult> {
   const parts = []
   
-  // Header based on type with both scores
-  if (sentiment.isAngry) {
-    parts.push(`😡 ANGRY (Anger: ${sentiment.angerScore}/100, Urgency: ${sentiment.urgencyScore}/100)`)
-  } else if (sentiment.isHighUrgency) {
-    parts.push(`❗ HIGH URGENCY (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
+  // Create a concise issue summary (3-10 words)
+  let issueSummary = '📝 '
+  
+  // Generate summary based on issue category and content
+  if (sentiment.issueCategory === 'refund-cancellation') {
+    if (conversation.subject?.toLowerCase().includes('cancel')) {
+      issueSummary += 'Wants to cancel subscription'
+    } else if (conversation.subject?.toLowerCase().includes('refund')) {
+      issueSummary += 'Requesting refund'
+    } else {
+      issueSummary += 'Billing/subscription issue'
+    }
+  } else if (sentiment.issueCategory === 'bug-broken') {
+    if (conversation.subject?.toLowerCase().includes('not working')) {
+      issueSummary += 'Feature not working'
+    } else if (conversation.subject?.toLowerCase().includes('error')) {
+      issueSummary += 'Error with app'
+    } else {
+      issueSummary += 'Technical issue reported'
+    }
+  } else if (sentiment.issueCategory === 'spam') {
+    issueSummary = '📝 Spam/promotional request'
   } else {
-    // For non-urgent tickets, show with 📝 emoji
-    parts.push(`📝 STANDARD (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`)
+    // Try to extract key issue from subject
+    const subject = conversation.subject || ''
+    if (subject.toLowerCase().includes('help')) {
+      issueSummary += 'Needs help'
+    } else if (subject.toLowerCase().includes('question')) {
+      issueSummary += 'Has question'
+    } else if (subject.toLowerCase().includes('access')) {
+      issueSummary += 'Access issue'
+    } else if (subject.toLowerCase().includes('login')) {
+      issueSummary += 'Login problem'
+    } else if (subject.toLowerCase().includes('password')) {
+      issueSummary += 'Password issue'
+    } else if (subject.toLowerCase().includes('subscription')) {
+      issueSummary += 'Subscription question'
+    } else if (subject.length > 0) {
+      // Truncate subject to first few words
+      const words = subject.split(' ').slice(0, 5).join(' ')
+      issueSummary += words.length > 30 ? words.substring(0, 30) + '...' : words
+    } else {
+      issueSummary += 'General inquiry'
+    }
   }
+  
+  // Header based on type with both scores
+  let header = ''
+  if (sentiment.isAngry) {
+    header = `😡 ANGRY (Anger: ${sentiment.angerScore}/100, Urgency: ${sentiment.urgencyScore}/100)`
+  } else if (sentiment.isHighUrgency) {
+    header = `❗ HIGH URGENCY (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`
+  } else {
+    // For non-urgent tickets, use 💬 emoji
+    header = `💬 STANDARD (Urgency: ${sentiment.urgencyScore}/100, Anger: ${sentiment.angerScore}/100)`
+  }
+  
+  // Add summary and header
+  parts.push(issueSummary)
+  parts.push(header)
   
   // Issue category
   const categoryMap = {
