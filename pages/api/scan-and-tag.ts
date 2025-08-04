@@ -758,7 +758,7 @@ export default async function handler(
               )
               
               if (!hasExistingSpamNote) {
-                const spamNote = createSpamNote(sentiment, textToAnalyze)
+                const spamNote = createSpamNote(keywordSentiment, textToAnalyze)
                 if (dryRun) {
                   console.log(`[DRY RUN] Would add spam note to ${conversation.id}. Note preview: ${spamNote.substring(0, 100)}...`)
                 } else {
@@ -777,9 +777,9 @@ export default async function handler(
                 await client.addNote(conversation.id, spamNote, true, conversation.status)
               }
             }
-          } else if (!sentiment.isSpam && (sentiment.isAngry || sentiment.isHighUrgency)) {
+          } else if (!keywordSentiment.isSpam && (keywordSentiment.isAngry || keywordSentiment.isHighUrgency)) {
             // Handle angry/urgent tags
-            if (sentiment.isAngry) {
+            if (keywordSentiment.isAngry) {
               // Angry customers always get both tags
               if (!hasAngryTag) {
                 if (!dryRun) {
@@ -793,7 +793,7 @@ export default async function handler(
                 }
                 tagged = true
               }
-            } else if (sentiment.isHighUrgency && !hasUrgencyTag) {
+            } else if (keywordSentiment.isHighUrgency && !hasUrgencyTag) {
               // Non-angry but urgent only gets high-urgency tag
               if (!dryRun) {
                 await client.addTag(conversation.id, 'high-urgency')
@@ -812,7 +812,7 @@ export default async function handler(
                 try {
                   // For Teams notifications, just send basic info without AI generation
                   // The actual AI response will be generated when adding the note
-                  const basicNoteText = `${sentiment.isAngry ? '😡 ANGRY' : '❗ HIGH URGENCY'} - Customer needs immediate attention`
+                  const basicNoteText = `${keywordSentiment.isAngry ? '😡 ANGRY' : '❗ HIGH URGENCY'} - Customer needs immediate attention`
                   
                   await teamsClient.sendUrgentTicketAlert({
                     conversationId: conversation.id,
@@ -830,7 +830,7 @@ export default async function handler(
         } // End of urgent/angry/spam tagging
         
         // Now handle AI notes and draft replies for ALL tickets (except spam)
-        if (!sentiment.isSpam) {
+        if (!keywordSentiment.isSpam) {
           try {
             // Check if note already exists to avoid duplicates
             const threadsData = await client.getConversationThreads(conversation.id)
@@ -857,7 +857,7 @@ export default async function handler(
                 skipReason = 'Sentiment escalation detected'
               } else {
                 shouldProcess = false
-                skipReason = `Sentiment stable (prev: U${previousSentiment.urgencyScore}/A${previousSentiment.angerScore}, curr: U${sentiment.urgencyScore}/A${sentiment.angerScore})`
+                skipReason = `Sentiment stable (prev: U${previousSentiment.urgencyScore}/A${previousSentiment.angerScore}, curr: U${keywordSentiment.urgencyScore}/A${keywordSentiment.angerScore})`
               }
             } else {
               // No new customer message
@@ -947,25 +947,25 @@ export default async function handler(
       
       // Track ticket for reporting
       const wouldTag: string[] = []
-      if (sentiment.isSpam && !existingTagNames.includes('spam')) {
+      if (keywordSentiment.isSpam && !existingTagNames.includes('spam')) {
         wouldTag.push('spam')
-      } else if (!sentiment.isSpam) {
-        if (sentiment.isAngry) {
+      } else if (!keywordSentiment.isSpam) {
+        if (keywordSentiment.isAngry) {
           if (!hasAngryTag) wouldTag.push('angry-customer')
           if (!hasUrgencyTag) wouldTag.push('high-urgency')
-        } else if (sentiment.isHighUrgency && !hasUrgencyTag) {
+        } else if (keywordSentiment.isHighUrgency && !hasUrgencyTag) {
           wouldTag.push('high-urgency')
         }
       }
       
       // Get final sentiment scores (AI if available, keyword otherwise)
       let finalScores = {
-        urgencyScore: sentiment.urgencyScore,
-        angerScore: sentiment.angerScore
+        urgencyScore: keywordSentiment.urgencyScore,
+        angerScore: keywordSentiment.angerScore
       }
       
       // Check if we processed AI sentiment for this ticket
-      if (!sentiment.isSpam) {
+      if (!keywordSentiment.isSpam) {
         try {
           const threadsData = await client.getConversationThreads(conversation.id)
           const notes = threadsData._embedded?.threads?.filter((thread: any) => thread.type === 'note') || []
@@ -999,8 +999,8 @@ export default async function handler(
         preview: conversation.preview || '',
         urgencyScore: finalScores.urgencyScore,
         angerScore: finalScores.angerScore,
-        categories: sentiment.categories,
-        indicators: sentiment.indicators,
+        categories: keywordSentiment.categories,
+        indicators: keywordSentiment.indicators,
         createdAt: conversation.createdAt,
         tagged,
         wouldTag: dryRun ? wouldTag : undefined,
