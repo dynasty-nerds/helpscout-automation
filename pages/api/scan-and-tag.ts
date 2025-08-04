@@ -99,43 +99,81 @@ async function createAnalysisNote(
   // Create a concise issue summary (3-10 words)
   let issueSummary = '📝 '
   
+  // Get the actual message content for better summary
+  let messageContent = ''
+  if (conversation._embedded?.threads) {
+    const customerThreads = conversation._embedded.threads.filter(
+      (thread: any) => thread.type === 'customer'
+    )
+    if (customerThreads.length > 0) {
+      const latestThread = customerThreads[customerThreads.length - 1]
+      messageContent = (latestThread.body || '').replace(/<[^>]*>/g, ' ').toLowerCase()
+    }
+  }
+  
+  const subject = (conversation.subject || '').toLowerCase()
+  const combinedText = subject + ' ' + messageContent
+  
   // Generate summary based on issue category and content
   if (sentiment.issueCategory === 'refund-cancellation') {
-    if (conversation.subject?.toLowerCase().includes('cancel')) {
+    if (combinedText.includes('cancel')) {
       issueSummary += 'Wants to cancel subscription'
-    } else if (conversation.subject?.toLowerCase().includes('refund')) {
+    } else if (combinedText.includes('refund')) {
       issueSummary += 'Requesting refund'
     } else {
       issueSummary += 'Billing/subscription issue'
     }
   } else if (sentiment.issueCategory === 'bug-broken') {
-    if (conversation.subject?.toLowerCase().includes('not working')) {
+    if (combinedText.includes('not working')) {
       issueSummary += 'Feature not working'
-    } else if (conversation.subject?.toLowerCase().includes('error')) {
+    } else if (combinedText.includes('error')) {
       issueSummary += 'Error with app'
+    } else if (combinedText.includes('bug')) {
+      issueSummary += 'Bug report'
     } else {
       issueSummary += 'Technical issue reported'
     }
   } else if (sentiment.issueCategory === 'spam') {
     issueSummary = '📝 Spam/promotional request'
   } else {
-    // Try to extract key issue from subject
-    const subject = conversation.subject || ''
-    if (subject.toLowerCase().includes('help')) {
+    // Look for specific keywords in the actual message content
+    if (combinedText.includes('sync') && (combinedText.includes('rtsports') || combinedText.includes('rt sports'))) {
+      issueSummary += 'RTSports sync question'
+    } else if (combinedText.includes('sync') && combinedText.includes('league')) {
+      issueSummary += 'League sync issue'
+    } else if (combinedText.includes('import')) {
+      issueSummary += 'Import issue'
+    } else if (combinedText.includes('export')) {
+      issueSummary += 'Export request'
+    } else if (combinedText.includes('help')) {
       issueSummary += 'Needs help'
-    } else if (subject.toLowerCase().includes('question')) {
+    } else if (combinedText.includes('question')) {
       issueSummary += 'Has question'
-    } else if (subject.toLowerCase().includes('access')) {
+    } else if (combinedText.includes('access')) {
       issueSummary += 'Access issue'
-    } else if (subject.toLowerCase().includes('login')) {
+    } else if (combinedText.includes('login') || combinedText.includes('log in')) {
       issueSummary += 'Login problem'
-    } else if (subject.toLowerCase().includes('password')) {
+    } else if (combinedText.includes('password')) {
       issueSummary += 'Password issue'
-    } else if (subject.toLowerCase().includes('subscription')) {
+    } else if (combinedText.includes('subscription')) {
       issueSummary += 'Subscription question'
+    } else if (combinedText.includes('dynasty') || combinedText.includes('league')) {
+      issueSummary += 'League question'
+    } else if (combinedText.includes('trade')) {
+      issueSummary += 'Trade question'
+    } else if (combinedText.includes('draft')) {
+      issueSummary += 'Draft question'
     } else if (subject.length > 0) {
-      // Truncate subject to first few words
-      const words = subject.split(' ').slice(0, 5).join(' ')
+      // Use subject but remove "Re:" prefix
+      let cleanSubject = conversation.subject
+      if (cleanSubject.toLowerCase().startsWith('re:')) {
+        cleanSubject = cleanSubject.substring(3).trim()
+      }
+      const words = cleanSubject.split(' ').slice(0, 5).join(' ')
+      issueSummary += words.length > 30 ? words.substring(0, 30) + '...' : words
+    } else if (messageContent.length > 0) {
+      // Extract first meaningful words from message
+      const words = messageContent.trim().split(/\s+/).slice(0, 5).join(' ')
       issueSummary += words.length > 30 ? words.substring(0, 30) + '...' : words
     } else {
       issueSummary += 'General inquiry'
