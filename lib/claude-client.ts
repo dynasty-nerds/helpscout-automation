@@ -85,12 +85,14 @@ When using the Fix Changelog:
   What it fixes: fixes ESPN league sync issues
   How customer can fix: to fix issue, simply remove your ESPN account from the 'Account' tab on the app homepage and re-add it
 - If you find a fix that clearly matches the user's issue, DO mention that "we recently fixed this issue"
+- ALWAYS include "Fix Changelog" in your referencedDocs array when you use information from it
 - The Date field IS the specific date when the fix was implemented - always use it when referencing the fix
 - Always format dates in a friendly way (e.g., "This was fixed on August 5th" not "08/05")
 - Convert date format: 08/05/2025 → "August 5th"
-- When sharing the fix instructions, make them sound friendly and conversational while keeping the exact steps
-- Example: Instead of "to fix issue, simply remove your ESPN account..." say "To get this working again, you'll just need to remove your ESPN account..."
-- DO NOT expand or guess additional steps beyond what's in the "How customer can fix" section
+- CRITICAL: Use the EXACT steps from "How customer can fix" - just make them sound friendly
+- Example: If it says "to fix issue, simply remove your ESPN account from the 'Account' tab on the app homepage and re-add it"
+  You should say: "To get this working, you'll need to remove your ESPN account from the 'Account' tab on the app homepage and re-add it"
+- DO NOT add extra steps like "sign out and back in" unless they're specifically in the Fix Changelog
 - Focus on fixes from the past 3-6 months as most relevant (older fixes may be stale)
 - Use your judgment: very recent fixes (past 3 months) are highly relevant, 3-6 months are still useful, older than 6 months use with caution
 - NEVER say "according to our fix changelog" or mention the document name - just say "we recently fixed this"
@@ -110,7 +112,13 @@ CUSTOMER'S LATEST MESSAGE:
 ${customerMessage}
 
 ISSUE CATEGORIZATION:
-You will receive a document containing common support issue categories. Use it to determine the best category for this customer's issue. Choose the most specific category that matches their problem. If no category fits well, create a brief descriptive category (3-5 words max). This categorization helps agents quickly understand the issue type.
+You will receive a document containing common support issue categories. Use it to determine the best category for this customer's issue. Choose the most specific category that matches their problem. If no category fits well, create a brief descriptive category (3-5 words max). This categorization helps agents quickly understand the issue type. IMPORTANT: Do not duplicate words in the category (e.g., not "Sync with ESPNSync with ESPN", just "ESPN sync issue").
+
+RELATIONSHIP BETWEEN DOCUMENTS:
+- Common Support Issue Categories: Defines issue types for categorization
+- Fix Changelog: Contains specific fixes with implementation dates and instructions
+- These may overlap - an issue category might have a recent fix in the changelog
+- When an issue matches BOTH a category AND a fix changelog entry, reference BOTH documents
 
 SENTIMENT ANALYSIS INSTRUCTIONS:
 Before generating the response, analyze the customer's sentiment using these guidelines:
@@ -153,7 +161,7 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
   "referencedUrls": ["actual helpscout doc URLs for agent reference"],
   "reasoning": "Why this response addresses their issue...",
   "responseType": "billing|technical|account|general",
-  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Use bullet points starting with '- ' for lists. Format: '- Item 1\\n- Item 2\\n\\nAdditional text after bullets'"
+  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Use bullet points starting with '- ' for lists. Format: '- Item 1\\n- Item 2\\n\\nAdditional text after bullets'. DO NOT say Fix Changelog is missing information if the fix is actually there - verify before claiming something is missing."
 }`
 
     try {
