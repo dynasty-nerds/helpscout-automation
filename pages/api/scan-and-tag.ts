@@ -600,7 +600,18 @@ export default async function handler(
           const finalThreads = finalThreadsCheck._embedded?.threads || []
           const recentAINotes = parsePreviousSentiment(finalThreads)
           
-          if (recentAINotes && !isInitial) {
+          // For incremental flow, check if a NEW note was created after our initial check
+          if (recentAINotes && !isInitial && previousSentiment) {
+            // Compare timestamps - if the note we found is newer than what we started with, skip
+            const recentNoteTime = new Date(recentAINotes.noteCreatedAt).getTime()
+            const previousNoteTime = new Date(previousSentiment.noteCreatedAt).getTime()
+            
+            if (recentNoteTime > previousNoteTime) {
+              console.log(`${conversation.id}: New AI note detected (created after we started) - skipping to prevent duplicate`)
+              continue
+            }
+          } else if (recentAINotes && isInitial) {
+            // For initial flow, any AI note means we should skip
             console.log(`${conversation.id}: AI note already exists (detected in final check) - skipping`)
             continue
           }
