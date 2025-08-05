@@ -372,8 +372,9 @@ export default async function handler(
     const limit = req.query.limit ? parseInt(req.query.limit as string) : req.body?.limit
     const scanClosed = req.query.scanClosed === 'true' || req.body?.scanClosed === true
     let forceReprocess = req.query.forceReprocess === 'true' || req.body?.forceReprocess === true
+    const conversationId = req.query.conversationId as string || req.body?.conversationId
     
-    console.log(`Starting scan with params: dryRun=${dryRun}, limit=${limit}, scanClosed=${scanClosed}, forceReprocess=${forceReprocess}`)
+    console.log(`Starting scan with params: dryRun=${dryRun}, limit=${limit}, scanClosed=${scanClosed}, forceReprocess=${forceReprocess}, conversationId=${conversationId}`)
     
     // Safety check for forceReprocess
     if (forceReprocess && (!dryRun || !scanClosed)) {
@@ -381,12 +382,36 @@ export default async function handler(
       forceReprocess = false
     }
     
-    // Get active/pending conversations or closed based on parameter
-    const conversationsResponse = scanClosed 
-      ? await client.getClosedConversations(limit || 50)
-      : await client.getActiveConversations()
+    // Get conversations based on parameters
+    let conversations = []
     
-    const conversations = conversationsResponse._embedded?.conversations || []
+    if (conversationId) {
+      // Get specific conversation
+      try {
+        const conversation = await client.getConversation(conversationId)
+        conversations = [conversation]
+        console.log(`Found specific conversation ${conversationId}`)
+      } catch (error) {
+        console.error(`Failed to fetch conversation ${conversationId}:`, error)
+        return res.status(404).json({
+          success: false,
+          error: `Conversation ${conversationId} not found`
+        })
+      }
+    } else {
+      // Get list of conversations
+      const conversationsResponse = scanClosed 
+        ? await client.getClosedConversations(limit || 50)
+        : await client.getActiveConversations()
+      
+      conversations = conversationsResponse._embedded?.conversations || []
+      
+      // Apply limit if specified
+      if (limit && conversations.length > limit) {
+        conversations = conversations.slice(0, limit)
+      }
+    }
+    
     console.log(`Found ${conversations.length} ${scanClosed ? 'closed' : 'active/pending'} conversations to process`)
     
     // Process conversations

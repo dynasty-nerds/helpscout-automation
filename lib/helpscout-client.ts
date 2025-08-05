@@ -108,6 +108,21 @@ export class HelpScoutClient {
     return response.data
   }
 
+  async getConversation(conversationId: string | number) {
+    await this.authenticate()
+
+    const response = await axios.get(`${this.baseURL}/conversations/${conversationId}`, {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+      },
+      params: {
+        embed: 'threads',
+      },
+    })
+
+    return response.data
+  }
+
   async getConversationThreads(conversationId: number) {
     await this.authenticate()
 
