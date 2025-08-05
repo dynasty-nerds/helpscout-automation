@@ -282,6 +282,18 @@ async function createAnalysisNote(
         console.error('Failed to fetch changelog document:', error)
       }
       
+      // Always fetch the known issues document (unpublished)
+      let knownIssuesDoc = null
+      try {
+        const knownIssuesId = '68919c52816719208b5a1a93'
+        knownIssuesDoc = await docsClient.getArticle(knownIssuesId)
+        if (knownIssuesDoc) {
+          console.log('Successfully fetched known issues document')
+        }
+      } catch (error) {
+        console.error('Failed to fetch known issues document:', error)
+      }
+      
       // Load learning files
       const { learnings, gaps } = await loadLearningFiles()
       
@@ -325,7 +337,7 @@ async function createAnalysisNote(
         }
       ]
       
-      // Add changelog document if available
+      // Add changelog document if available (at beginning)
       if (changelogDoc) {
         contextDocs.unshift({
           id: changelogDoc.id,
@@ -335,6 +347,19 @@ async function createAnalysisNote(
           content: changelogDoc.text || '',
           publicUrl: changelogDoc.publicUrl,
           url: changelogDoc.publicUrl
+        })
+      }
+      
+      // Add known issues document if available (at beginning)
+      if (knownIssuesDoc) {
+        contextDocs.unshift({
+          id: knownIssuesDoc.id,
+          name: knownIssuesDoc.name || 'Known Issues',
+          title: knownIssuesDoc.name || 'Known Issues',
+          text: knownIssuesDoc.text || '',
+          content: knownIssuesDoc.text || '',
+          publicUrl: knownIssuesDoc.publicUrl,
+          url: knownIssuesDoc.publicUrl
         })
       }
       

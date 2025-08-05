@@ -25,6 +25,8 @@ Each section should have:
 
 ## League Sync Issues
 
+**Context**: League sync issues affect all 5 platforms (ESPN, Sleeper, MFL, Fleaflicker, FFPC). During offseason (February-August), leagues roll over from previous year to next year (e.g., 2024 to 2025). This requires manual work and often causes sync issues. Standard first troubleshooting step: remove and re-add league host account from Accounts tab on app homepage.
+
 ### ESPN sync/connection issue
 - Keywords: espn AND (connect OR sync OR link)
 
