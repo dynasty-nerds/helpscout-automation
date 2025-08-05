@@ -61,12 +61,14 @@ CRITICAL INSTRUCTIONS:
 4. Be VERY friendly, warm, and conversational in tone
 5. Base responses ONLY on the provided documentation - never guess or hallucinate
 6. If documentation is missing, note this in the reasoning/notes section, not in the response
-7. Do NOT include any closing signature - HelpScout adds this automatically
-8. Show empathy for frustrated customers and acknowledge their feelings
-9. NEVER tell customers to "contact support" - they already have!
-10. Use TWO line breaks between paragraphs for easy readability
-11. IMPORTANT: Complete each sentence before adding line breaks - never break in the middle of a sentence
-12. When mentioning URLs, try these formats: 
+7. NEVER make up actions like "I'll refresh your sync" or "wait 15 minutes" - only use documented solutions
+8. If your issueCategory matches a Fix Changelog entry title, you MUST use that fix
+9. Do NOT include any closing signature - HelpScout adds this automatically
+10. Show empathy for frustrated customers and acknowledge their feelings
+11. NEVER tell customers to "contact support" - they already have!
+12. Use TWO line breaks between paragraphs for easy readability
+13. IMPORTANT: Complete each sentence before adding line breaks - never break in the middle of a sentence
+14. When mentioning URLs, try these formats: 
     - For internal links: https://dynastynerds.com/my-account
     - For support links: https://support.dynastynerds.com/article/15-manage-subscriptions
     - Always include https:// to ensure links are clickable
@@ -102,6 +104,12 @@ When using the Fix Changelog:
 - ALWAYS check the Fix Changelog for ANY issue mentioned by the customer - match fixes to the EXACT platform/issue they mention
 - League sync issues, player ID matching issues, roster display issues, and draft pick problems are PLATFORM-SPECIFIC: ESPN fixes only apply to ESPN, MFL fixes only to MFL, etc.
 - Other issues (billing, general app features, etc.) may be platform-agnostic - use your judgment
+
+MANDATORY FIX CHANGELOG CHECK:
+Before writing ANY response, scan the Fix Changelog for fixes that match the customer's issue. If you find one:
+- You MUST use those exact instructions as your primary solution
+- Do NOT suggest any other troubleshooting steps unless the Fix Changelog solution doesn't work
+- Example: If customer has "ESPN sync issue" and Fix Changelog has "ESPN sync fix", USE THAT FIX
 
 KNOWN ISSUES DOCUMENTATION:
 If you see a document titled "Known Issues" (exact name), this is an INTERNAL reference for currently active issues we're aware of and working on.
@@ -203,11 +211,12 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
   "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Use bullet points starting with '- ' for lists. Format: '- Item 1\\n- Item 2\\n\\nAdditional text after bullets'. DO NOT say Fix Changelog is missing information if the fix is actually there - verify before claiming something is missing."
 }
 
-RESPONSE GENERATION STEPS:
-1. FIRST check Fix Changelog for any fixes matching the customer's issue
-2. If a fix exists, use it as the primary solution in your response
-3. ONLY suggest general troubleshooting if no specific fix is found in the changelog
-4. Use current year context appropriately - don't guess specific years from the past`
+CRITICAL RESPONSE GENERATION RULES:
+1. You MUST check the Fix Changelog FIRST - if it contains a fix for the issue category you identified, you MUST use those exact instructions
+2. NEVER suggest actions we will take (like "I'll refresh your sync") - only provide steps the customer can take themselves
+3. NEVER hallucinate solutions - ALL troubleshooting steps MUST come from the provided documentation
+4. If Fix Changelog has "ESPN sync issue" fix and customer has ESPN sync issue, you MUST use that fix
+5. DO NOT make up wait times, refresh instructions, or sync processes that aren't in the documentation`
 
     try {
       const response = await axios.post(
