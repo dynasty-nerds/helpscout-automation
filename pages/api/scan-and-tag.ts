@@ -313,7 +313,10 @@ async function createAnalysisNote(
     const angerIncrease = aiResponse.angerScore - previousSentiment.angerScore
     const urgencyIncrease = aiResponse.urgencyScore - previousSentiment.urgencyScore
     
-    if (angerIncrease < 20 && urgencyIncrease < 20) {
+    // Create note if EITHER anger OR urgency increased by 10 or more
+    if (angerIncrease >= 10 || urgencyIncrease >= 10) {
+      // Continue with note creation - add escalation indicator below
+    } else {
       console.log(`Sentiment stable - Anger: ${angerIncrease >= 0 ? '+' : ''}${angerIncrease}, Urgency: ${urgencyIncrease >= 0 ? '+' : ''}${urgencyIncrease}`)
       return {
         noteText: '',
