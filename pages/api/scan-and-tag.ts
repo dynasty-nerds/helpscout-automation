@@ -595,26 +595,21 @@ export default async function handler(
             console.log(`Added ${tag} tag to ${conversation.id}`)
           }
           
-          // Re-check for AI notes right before adding to prevent race conditions
-          const finalThreadsCheck = await client.getConversationThreads(conversation.id)
-          const finalThreads = finalThreadsCheck._embedded?.threads || []
-          const recentAINotes = parsePreviousSentiment(finalThreads)
-          
-          // For incremental flow, check if a NEW note was created after our initial check
-          if (recentAINotes && !isInitial && previousSentiment) {
-            // Compare timestamps - if the note we found is newer than what we started with, skip
-            const recentNoteTime = new Date(recentAINotes.noteCreatedAt).getTime()
-            const previousNoteTime = new Date(previousSentiment.noteCreatedAt).getTime()
+          // For initial flow only, check if an AI note was created while we were processing
+          if (isInitial) {
+            const finalThreadsCheck = await client.getConversationThreads(conversation.id)
+            const finalThreads = finalThreadsCheck._embedded?.threads || []
+            const recentAINotes = parsePreviousSentiment(finalThreads)
             
-            if (recentNoteTime > previousNoteTime) {
-              console.log(`${conversation.id}: New AI note detected (created after we started) - skipping to prevent duplicate`)
+            if (recentAINotes) {
+              console.log(`${conversation.id}: AI note already exists (detected in final check) - skipping`)
               continue
             }
-          } else if (recentAINotes && isInitial) {
-            // For initial flow, any AI note means we should skip
-            console.log(`${conversation.id}: AI note already exists (detected in final check) - skipping`)
-            continue
           }
+          // For incremental flow, we've already verified:
+          // 1. There's a new customer message after the last AI note
+          // 2. The sentiment threshold was exceeded
+          // So we should create the note
           
           // Add note
           await client.addNote(conversation.id, analysisResult.noteText, true, conversation.status)
