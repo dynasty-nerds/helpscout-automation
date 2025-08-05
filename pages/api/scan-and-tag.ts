@@ -213,7 +213,12 @@ async function createAnalysisNote(
       
       // Get relevant documentation
       const cachedArticles = await docsClient.getCachedArticles()
+      console.log(`Total cached articles available: ${cachedArticles.length}`)
       const relevantDocs = docsClient.findRelevantArticles(customerMessage, cachedArticles, 3)
+      console.log(`Found ${relevantDocs.length} relevant docs for message: "${customerMessage.substring(0, 50)}..."`)
+      if (relevantDocs.length > 0) {
+        console.log('Relevant docs found:', relevantDocs.map(doc => ({ name: doc.name, url: doc.publicUrl })))
+      }
       
       // Load learning files
       const { learnings, gaps } = await loadLearningFiles()
@@ -367,14 +372,26 @@ async function createAnalysisNote(
     // Always show referenced documentation section
     parts.push(`\n📚 Referenced Documentation:`)
     if (aiResponse.referencedDocs?.length) {
+      // Filter out internal docs
+      const externalDocs: string[] = []
       aiResponse.referencedDocs.forEach((doc, index) => {
         const url = aiResponse.referencedUrls?.[index] || ''
+        // Skip internal URLs
+        if (url && url.startsWith('internal://')) {
+          return
+        }
         if (url) {
-          parts.push(`- ${doc}: ${url}`)
+          externalDocs.push(`- ${doc}: ${url}`)
         } else {
-          parts.push(`- ${doc}`)
+          externalDocs.push(`- ${doc}`)
         }
       })
+      
+      if (externalDocs.length > 0) {
+        externalDocs.forEach(doc => parts.push(doc))
+      } else {
+        parts.push(`- No documentation referenced`)
+      }
     } else {
       parts.push(`- No documentation referenced`)
     }

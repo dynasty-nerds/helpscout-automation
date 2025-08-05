@@ -159,6 +159,8 @@ export class HelpScoutDocsClient {
     // Extract key terms
     const keyTerms = this.extractKeyTerms(message)
     
+    console.log(`Searching ${allArticles.length} articles with key terms:`, keyTerms)
+    
     // Score articles based on keyword matches
     const scoredArticles = allArticles.map(article => {
       let score = 0
@@ -190,10 +192,24 @@ export class HelpScoutDocsClient {
       return { article, score }
     })
     
-    // Return top scoring articles
-    return scoredArticles
+    // Log top scoring articles
+    const topScored = scoredArticles
       .filter(item => item.score > 0)
       .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+    
+    if (topScored.length > 0) {
+      console.log('Top scoring articles:', topScored.map(item => ({ 
+        name: item.article.name, 
+        score: item.score,
+        url: item.article.publicUrl
+      })))
+    } else {
+      console.log('No articles matched the search criteria')
+    }
+    
+    // Return top scoring articles
+    return topScored
       .slice(0, limit)
       .map(item => item.article)
   }
@@ -239,10 +255,23 @@ export class HelpScoutDocsClient {
         this.articlesCache.articles = await this.getArticles()
         this.articlesCache.lastFetch = now
         console.log(`Successfully cached ${this.articlesCache.articles.length} total articles from all collections`)
-      } catch (error) {
-        console.error('Failed to refresh articles cache:', error)
+        
+        // Log sample of first few articles to verify content
+        if (this.articlesCache.articles.length > 0) {
+          console.log('Sample of cached articles:', this.articlesCache.articles.slice(0, 3).map(a => ({
+            id: a.id,
+            name: a.name,
+            url: a.publicUrl,
+            textLength: a.text?.length || 0
+          })))
+        }
+      } catch (error: any) {
+        console.error('Failed to refresh articles cache:', error.message)
+        console.error('Full error:', error)
         // Return stale cache if available
       }
+    } else {
+      console.log(`Using cached articles (${this.articlesCache.articles.length} articles, cached ${Math.round((now - this.articlesCache.lastFetch) / 1000 / 60)} minutes ago)`)
     }
     
     return this.articlesCache.articles
