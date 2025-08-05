@@ -78,7 +78,9 @@ function parsePreviousSentiment(threads: any[]): PreviousSentiment | null {
   if (aiNotes.length === 0) return null
   
   const latestNote = aiNotes[0]
-  const match = latestNote.body.match(/\[SENTIMENT_DATA: U(\d+)_A(\d+)\]/)
+  // Look for both old format and new HTML comment format
+  const match = latestNote.body.match(/\[SENTIMENT_DATA: U(\d+)_A(\d+)\]/) || 
+                latestNote.body.match(/<!-- \[SENTIMENT_DATA: U(\d+)_A(\d+)\] -->/)
   
   if (!match) return null
   
@@ -334,8 +336,8 @@ async function createAnalysisNote(
   // Add usage tracking
   parts.push('\n💰 Claude Usage: $0.0100 (estimated)')
   
-  // Add sentiment data for tracking (always include, even on error)
-  parts.push(`\n[SENTIMENT_DATA: U${aiResponse.urgencyScore}_A${aiResponse.angerScore}]`)
+  // Add hidden sentiment data for tracking (HTML comment so it's not visible in HelpScout)
+  parts.push(`\n<!-- [SENTIMENT_DATA: U${aiResponse.urgencyScore}_A${aiResponse.angerScore}] -->`)
   
   return {
     noteText: parts.join('\n'),
