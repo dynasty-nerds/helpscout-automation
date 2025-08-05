@@ -6,6 +6,18 @@ import { HelpScoutDocsClient } from '../../lib/helpscout-docs'
 import fs from 'fs/promises'
 import path from 'path'
 
+// Claude pricing: https://www.anthropic.com/api
+// Claude 3 Opus: $15 per million input tokens, $75 per million output tokens
+function calculateClaudeCost(usage?: { inputTokens: number; outputTokens: number }): number {
+  if (!usage) return 0.01 // Default if no usage data
+  
+  const inputCost = (usage.inputTokens / 1_000_000) * 15
+  const outputCost = (usage.outputTokens / 1_000_000) * 75
+  
+  // Round to nearest cent, minimum $0.01
+  return Math.max(0.01, Math.round((inputCost + outputCost) * 100) / 100)
+}
+
 async function loadLearningFiles(): Promise<{ learnings: string; gaps: string }> {
   try {
     const learningsPath = path.join(process.cwd(), 'claude-learnings.md')
@@ -290,7 +302,7 @@ async function createAnalysisNote(
   
   // Add AI analysis details if available
   if (aiResponse.sentimentReasoning && !aiResponse.error) {
-    parts.push(`\n🤖 AI Sentiment Analysis: ${aiResponse.sentimentReasoning}`)
+    parts.push(`\n🤖 AI Sentiment Analysis:\n${aiResponse.sentimentReasoning}`)
   }
   
   // Add error message if analysis failed
@@ -301,7 +313,7 @@ async function createAnalysisNote(
   
   // Add triggers if detected
   if (!aiResponse.error && (aiResponse.angerTriggers?.length || aiResponse.urgencyTriggers?.length)) {
-    parts.push('\nTriggers Detected:')
+    parts.push('\n🔍 Triggers Detected:')
     if (aiResponse.angerTriggers?.length) {
       parts.push(`- Anger: ${aiResponse.angerTriggers.join(', ')}`)
     }
@@ -310,21 +322,34 @@ async function createAnalysisNote(
     }
   }
   
-  // Add AI suggested response section
-  if (aiResponse.suggestedResponse && !aiResponse.error) {
-    parts.push('\n\n--- AI SUGGESTED RESPONSE ---')
-    parts.push(aiResponse.suggestedResponse)
-    
+  // Add confidence and metadata (but not the suggested response since it's in the draft)
+  if (!aiResponse.error) {
     if (aiResponse.confidence !== undefined) {
-      parts.push(`\nConfidence: ${Math.round(aiResponse.confidence * 100)}%`)
+      parts.push(`\n\n📊 AI Response Confidence: ${Math.round(aiResponse.confidence * 100)}%`)
+      parts.push('(Higher confidence indicates the AI found relevant documentation and clear patterns)')
     }
     
     if (aiResponse.referencedDocs?.length) {
-      parts.push(`\nReferenced: ${aiResponse.referencedDocs.join(', ')}`)
+      parts.push(`\n\n📚 Referenced Documentation:`)
+      aiResponse.referencedDocs.forEach((doc, index) => {
+        const url = aiResponse.referencedUrls?.[index] || ''
+        if (url) {
+          parts.push(`- ${doc}: ${url}`)
+        } else {
+          parts.push(`- ${doc}`)
+        }
+      })
     }
     
     if (aiResponse.notesForAgent) {
-      parts.push(`\nNotes for Agent: ${aiResponse.notesForAgent}`)
+      parts.push(`\n\n📝 Notes for Agent:`)
+      // Split notes by common patterns and format each on its own line
+      const noteLines = aiResponse.notesForAgent
+        .split(/(?=Documentation gap:|Missing:|No |Consider:)/)
+        .filter(line => line.trim())
+      noteLines.forEach(line => {
+        parts.push(line.trim())
+      })
     }
   } else if (aiResponse.error) {
     // Add error message in suggested response section
@@ -334,7 +359,9 @@ async function createAnalysisNote(
   }
   
   // Add usage tracking
-  parts.push('\n💰 Claude Usage: $0.0100 (estimated)')
+  if (aiResponse.usageString && !aiResponse.usageString.includes('API call failed')) {
+    parts.push(`\n\n${aiResponse.usageString}`)
+  }
   
   // Add hidden sentiment data for tracking (HTML comment so it's not visible in HelpScout)
   parts.push(`\n<!-- [SENTIMENT_DATA: U${aiResponse.urgencyScore}_A${aiResponse.angerScore}] -->`)

@@ -289,7 +289,8 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
         angerTriggers: result.angerTriggers || [],
         urgencyTriggers: result.urgencyTriggers || [],
         isSpam: result.isSpam,
-        sentimentReasoning: result.sentimentReasoning
+        sentimentReasoning: result.sentimentReasoning,
+        usage: { inputTokens, outputTokens }
       }
 
     } catch (error: any) {
@@ -305,7 +306,16 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
         reasoning: "Fallback response due to API error",
         responseType: "general",
         notesForAgent: `Error calling Claude API: ${error.message}`,
-        usageString: '💰 Claude Usage: $0.0000 for this request (API call failed)'
+        usageString: '💰 Claude Usage: $0.0000 for this request (API call failed)',
+        angerScore: 0,
+        urgencyScore: 0,
+        angerTriggers: [],
+        urgencyTriggers: [],
+        isSpam: false,
+        sentimentReasoning: 'Failed to analyze sentiment due to API error',
+        error: true,
+        errorMessage: error.message,
+        usage: undefined
       }
     }
   }
