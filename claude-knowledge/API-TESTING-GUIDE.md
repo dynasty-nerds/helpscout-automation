@@ -13,6 +13,7 @@
 |-----------|--------|-------------|---------|
 | `dryRun` | `true`/`false` | Test without making changes | `?dryRun=true` |
 | `limit` | number | Process only N tickets | `?limit=5` |
+| `conversationId` | number | Process a specific conversation only | `?conversationId=3025705076` |
 | `scanClosed` | `true`/`false` | Scan closed tickets instead of active | `?scanClosed=true` |
 | `forceReprocess` | `true`/`false` | Reprocess tickets with existing notes (only works on closed tickets in dry run) | `?forceReprocess=true` |
 
@@ -34,7 +35,23 @@ https://helpscout-automation.vercel.app/api/scan-and-tag?dryRun=true&scanClosed=
 - Reprocesses even if they have AI notes
 - Safe for testing AI sentiment
 
-### 3. Small Production Run
+### 3. Test Specific Conversation (Safe)
+```
+https://helpscout-automation.vercel.app/api/scan-and-tag?conversationId=3025705076&dryRun=true
+```
+- Tests a single specific ticket
+- Get the ID from HelpScout URL (e.g., secure.helpscout.net/conversation/3025705076/...)
+- Perfect for testing new tickets or debugging
+
+### 4. Process Specific Conversation (Production)
+```
+https://helpscout-automation.vercel.app/api/scan-and-tag?conversationId=3025705076
+```
+- Actually processes just that one ticket
+- Adds tags and notes to that specific conversation
+- Good for handling individual urgent tickets
+
+### 5. Small Production Run
 ```
 https://helpscout-automation.vercel.app/api/scan-and-tag?limit=10
 ```
@@ -42,7 +59,7 @@ https://helpscout-automation.vercel.app/api/scan-and-tag?limit=10
 - Adds tags and notes
 - Good for monitoring initial results
 
-### 4. Full Production Run
+### 6. Full Production Run
 ```
 https://helpscout-automation.vercel.app/api/scan-and-tag
 ```
@@ -95,6 +112,24 @@ https://helpscout-automation.vercel.app/api/scan-and-tag
 3. **Use limits**: Start with `?limit=5` before full runs
 4. **Check logs**: Vercel logs show detailed AI analysis
 5. **Monitor costs**: Each ticket costs ~$0.01 for AI analysis + response
+
+### Using conversationId Parameter
+
+The `conversationId` parameter is perfect for:
+- **Testing specific problematic tickets**: When you need to debug why a ticket was processed a certain way
+- **Processing urgent tickets immediately**: Don't wait for the full scan
+- **Testing with known examples**: Create a test ticket and process just that one
+- **Re-running on specific conversations**: Combine with `forceReprocess=true` to re-analyze
+
+To find a conversation ID:
+1. Open the conversation in HelpScout
+2. Look at the URL: `https://secure.helpscout.net/conversation/3025705076/...`
+3. The number after `/conversation/` is the ID (e.g., `3025705076`)
+
+Example combinations:
+- Test one ticket: `?conversationId=3025705076&dryRun=true`
+- Force re-analyze closed ticket: `?conversationId=3025705076&scanClosed=true&forceReprocess=true&dryRun=true`
+- Process one urgent ticket now: `?conversationId=3025705076`
 
 ## System Prompt Location
 

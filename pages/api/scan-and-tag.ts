@@ -6,18 +6,6 @@ import { HelpScoutDocsClient } from '../../lib/helpscout-docs'
 import fs from 'fs/promises'
 import path from 'path'
 
-// Claude pricing: https://www.anthropic.com/api
-// Claude 3 Opus: $15 per million input tokens, $75 per million output tokens
-function calculateClaudeCost(usage?: { inputTokens: number; outputTokens: number }): number {
-  if (!usage) return 0.01 // Default if no usage data
-  
-  const inputCost = (usage.inputTokens / 1_000_000) * 15
-  const outputCost = (usage.outputTokens / 1_000_000) * 75
-  
-  // Round to nearest cent, minimum $0.01
-  return Math.max(0.01, Math.round((inputCost + outputCost) * 100) / 100)
-}
-
 async function loadLearningFiles(): Promise<{ learnings: string; gaps: string }> {
   try {
     const learningsPath = path.join(process.cwd(), 'claude-learnings.md')

@@ -17,6 +17,9 @@ interface ClaudeResponse {
   urgencyTriggers?: string[]
   isSpam?: boolean
   sentimentReasoning?: string
+  // Error handling
+  error?: boolean
+  errorMessage?: string
 }
 
 export class ClaudeClient {
@@ -289,8 +292,7 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
         angerTriggers: result.angerTriggers || [],
         urgencyTriggers: result.urgencyTriggers || [],
         isSpam: result.isSpam,
-        sentimentReasoning: result.sentimentReasoning,
-        usage: { inputTokens, outputTokens }
+        sentimentReasoning: result.sentimentReasoning
       }
 
     } catch (error: any) {
@@ -314,8 +316,7 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
         isSpam: false,
         sentimentReasoning: 'Failed to analyze sentiment due to API error',
         error: true,
-        errorMessage: error.message,
-        usage: undefined
+        errorMessage: error.message
       }
     }
   }
