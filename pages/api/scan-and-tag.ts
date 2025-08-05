@@ -485,7 +485,14 @@ async function createAnalysisNote(
   // Add header based on AI sentiment
   let header = ''
   if (aiResponse.isAngry) {
-    header = `😡 ANGRY`
+    // Determine anger level based on score
+    if (aiResponse.angerScore >= 80) {
+      header = `😡 EXTREMELY ANGRY`
+    } else if (aiResponse.angerScore >= 60) {
+      header = `😡 VERY ANGRY`
+    } else {
+      header = `😡 ANGRY`
+    }
   } else if (aiResponse.isHighUrgency) {
     header = `❗ HIGH URGENCY`
   } else {
