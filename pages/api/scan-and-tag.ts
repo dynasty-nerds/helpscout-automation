@@ -369,9 +369,20 @@ async function createAnalysisNote(
       }
       
       // Get customer first name
-      let customerFirstName = conversation.primaryCustomer?.firstName || undefined
+      console.log(`Extracting customer first name for conversation ${conversation.id}`)
+      console.log(`primaryCustomer object:`, JSON.stringify(conversation.primaryCustomer, null, 2))
+      console.log(`Looking for firstName: "${conversation.primaryCustomer?.firstName}"`)
+      console.log(`Looking for first: "${conversation.primaryCustomer?.first}"`)
+      
+      let customerFirstName = conversation.primaryCustomer?.firstName || conversation.primaryCustomer?.first || undefined
+      console.log(`Raw extracted name: "${customerFirstName}"`)
+      
       if (customerFirstName && typeof customerFirstName === 'string') {
+        const originalName = customerFirstName
         customerFirstName = customerFirstName.charAt(0).toUpperCase() + customerFirstName.slice(1).toLowerCase()
+        console.log(`Formatted name: "${originalName}" -> "${customerFirstName}"`)
+      } else {
+        console.log(`No valid first name found, using fallback`)
       }
       
       // Call Claude API
@@ -401,14 +412,18 @@ async function createAnalysisNote(
       }
       
       console.log(`AI analysis complete - Anger: ${aiResponse.angerScore}/100, Urgency: ${aiResponse.urgencyScore}/100`)
+      console.log(`AI issueCategory field: "${aiResponse.issueCategory}"`)
+      console.log(`Fallback category prepared: "${fallbackCategory}"`)
       
       // Use AI-determined category if available
       if (aiResponse.issueCategory) {
-        console.log(`AI provided category: "${aiResponse.issueCategory}"`)
+        console.log(`AI provided category: "${aiResponse.issueCategory}" - using this for issue summary`)
         issueSummary += aiResponse.issueCategory
+        console.log(`Final issue summary with AI category: "${issueSummary}"`)
       } else {
-        console.log(`Using fallback category: "${fallbackCategory}"`)
+        console.log(`No AI category provided, using fallback: "${fallbackCategory}"`)
         issueSummary += fallbackCategory
+        console.log(`Final issue summary with fallback: "${issueSummary}"`)
       }
       
     } catch (error: any) {

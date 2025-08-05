@@ -43,6 +43,7 @@ export class ClaudeClient {
     relevantDocs: any[],
     customerFirstName?: string
   ): Promise<ClaudeResponse> {
+    console.log(`ClaudeClient.generateResponse called with customerFirstName: "${customerFirstName}"`)
     
     // Format documentation for context
     const docsContext = relevantDocs.map(doc => 
@@ -230,6 +231,18 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
       
       // Log the raw JSON for debugging
       console.log('Raw Claude JSON response (first 500 chars):', jsonString.substring(0, 500))
+      
+      // Log specific fields for debugging after parsing
+      try {
+        const tempParse = JSON.parse(jsonString)
+        if (tempParse.issueCategory) {
+          console.log(`Claude returned issueCategory: "${tempParse.issueCategory}"`)
+        } else {
+          console.log(`Claude did not return an issueCategory field`)
+        }
+      } catch (e) {
+        console.log('Could not parse response for issueCategory logging')
+      }
       
       let result
       try {
