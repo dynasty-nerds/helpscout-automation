@@ -344,21 +344,23 @@ async function createAnalysisNote(
     
     if (aiResponse.notesForAgent) {
       parts.push(`\n📝 Notes for Agent:`)
-      // Split notes by common patterns and format each on its own line
-      const noteLines = aiResponse.notesForAgent
-        .split(/(?=Documentation gap:|Missing:|No |Consider:)/)
-        .filter(line => line.trim())
-      noteLines.forEach((line, index) => {
+      // Split by newlines to preserve the structure from Claude
+      const lines = aiResponse.notesForAgent.split('\n').filter(line => line.trim())
+      let lastWasBullet = false
+      
+      lines.forEach(line => {
         const trimmedLine = line.trim()
-        // Check if this line starts with a keyword pattern
-        if (trimmedLine.match(/^(Documentation gap:|Missing:|No |Consider:|Recommend:)/)) {
-          parts.push(trimmedLine)
-        } else if (index > 0) {
-          // If it doesn't start with a pattern and it's not the first line, add a line break
+        const isBullet = trimmedLine.startsWith('-')
+        
+        // If this line doesn't start with a bullet and the last line was a bullet,
+        // add a line break before it
+        if (!isBullet && lastWasBullet) {
           parts.push(`\n${trimmedLine}`)
         } else {
           parts.push(trimmedLine)
         }
+        
+        lastWasBullet = isBullet
       })
     }
   
