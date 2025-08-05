@@ -162,7 +162,7 @@ async function createAnalysisNote(
   parts.push(issueSummary)
   
   // Try to get AI analysis
-  let aiResponse: AIResponse | null = null
+  let aiResponse: AIResponse
   
   if (!claudeClient || !docsClient) {
     // No Claude integration available
@@ -260,8 +260,19 @@ async function createAnalysisNote(
     }
   }
   
+  // For errors, just return the error message
+  if (aiResponse.error) {
+    return {
+      noteText: `❌ ${aiResponse.errorMessage}`,
+      aiResponse,
+      suggestedResponse: undefined,
+      error: true,
+      errorMessage: aiResponse.errorMessage
+    }
+  }
+  
   // Check if we should create note based on sentiment change (for incremental flow)
-  if (!isInitial && previousSentiment && !aiResponse.error) {
+  if (!isInitial && previousSentiment) {
     const angerIncrease = aiResponse.angerScore - previousSentiment.angerScore
     const urgencyIncrease = aiResponse.urgencyScore - previousSentiment.urgencyScore
     
@@ -277,17 +288,6 @@ async function createAnalysisNote(
     
     // Add escalation indicator
     parts.push(`🔺 ESCALATION - Anger: ${angerIncrease >= 0 ? '+' : ''}${angerIncrease}, Urgency: ${urgencyIncrease >= 0 ? '+' : ''}${urgencyIncrease}`)
-  }
-  
-  // For errors, just return the error message
-  if (aiResponse.error) {
-    return {
-      noteText: `❌ ${aiResponse.errorMessage}`,
-      aiResponse,
-      suggestedResponse: undefined,
-      error: true,
-      errorMessage: aiResponse.errorMessage
-    }
   }
   
   // Add header based on AI sentiment
@@ -361,7 +361,6 @@ async function createAnalysisNote(
         }
       })
     }
-  }
   
   // Add usage tracking
   if (aiResponse.usageString && !aiResponse.usageString.includes('API call failed')) {

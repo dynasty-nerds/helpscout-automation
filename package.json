@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest",
+    "pre-push": "./scripts/pre-push-check.sh",
+    "check": "npm run build"
   },
   "dependencies": {
     "axios": "^1.6.2",
