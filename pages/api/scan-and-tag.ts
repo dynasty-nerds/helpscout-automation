@@ -54,8 +54,10 @@ interface AIResponse {
   notesForAgent?: string
   confidence?: number
   referencedDocs?: string[]
+  referencedUrls?: string[]
   error?: boolean
   errorMessage?: string
+  usageString?: string
 }
 
 interface AnalysisResult {
@@ -237,6 +239,8 @@ async function createAnalysisNote(
         notesForAgent: claudeResponse.notesForAgent,
         confidence: claudeResponse.confidence,
         referencedDocs: claudeResponse.referencedDocs,
+        referencedUrls: claudeResponse.referencedUrls,
+        usageString: claudeResponse.usageString,
         error: false
       }
       
