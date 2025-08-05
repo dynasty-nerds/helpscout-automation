@@ -131,6 +131,12 @@ ${docsContext}
 CONVERSATION HISTORY:
 ${conversationHistory}
 
+IMPORTANT: The conversation history above includes both customer messages and agent responses. When generating your suggested response:
+- Review what agents have already told the customer
+- Do NOT repeat instructions or solutions already provided
+- If an agent already suggested the standard fix, acknowledge it and provide next steps
+- Build upon previous responses rather than starting over
+
 CUSTOMER'S LATEST MESSAGE:
 ${customerMessage}
 

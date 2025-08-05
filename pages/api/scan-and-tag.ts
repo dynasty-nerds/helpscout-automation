@@ -304,6 +304,11 @@ async function createAnalysisNote(
           if (thread.type === 'customer') {
             const cleanBody = (thread.body || '').replace(/<[^>]*>/g, ' ')
             conversationHistory += `\nCustomer: ${cleanBody}\n`
+          } else if (thread.type === 'reply' && thread.state === 'published') {
+            // Include agent responses (but not drafts or notes)
+            const cleanBody = (thread.body || '').replace(/<[^>]*>/g, ' ')
+            const agentName = thread.createdBy?.firstName || 'Agent'
+            conversationHistory += `\nAgent (${agentName}): ${cleanBody}\n`
           }
         })
       }
