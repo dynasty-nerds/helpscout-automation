@@ -71,18 +71,50 @@ interface AnalysisResult {
 function parsePreviousSentiment(threads: any[]): PreviousSentiment | null {
   // Find the most recent AI note with sentiment data
   const aiNotes = threads
-    .filter(thread => 
-      thread.type === 'note' && 
-      thread.body?.includes('[SENTIMENT_DATA:')
-    )
+    .filter(thread => {
+      if (thread.type !== 'note') return false
+      const body = thread.body || ''
+      // Look for our AI note markers
+      return body.includes('🤖 AI Sentiment Analysis:') || 
+             body.includes('[SENTIMENT_DATA:') ||
+             body.includes('<!-- [SENTIMENT_DATA:')
+    })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   
   if (aiNotes.length === 0) return null
   
   const latestNote = aiNotes[0]
-  // Look for both old format and new HTML comment format
-  const match = latestNote.body.match(/\[SENTIMENT_DATA: U(\d+)_A(\d+)\]/) || 
-                latestNote.body.match(/<!-- \[SENTIMENT_DATA: U(\d+)_A(\d+)\] -->/)
+  // Try multiple formats to find sentiment data
+  const body = latestNote.body || ''
+  
+  // Try to extract from various formats
+  let match = body.match(/\[SENTIMENT_DATA: U(\d+)_A(\d+)\]/)
+  if (!match) match = body.match(/<!-- \[SENTIMENT_DATA: U(\d+)_A(\d+)\] -->/)
+  if (!match) match = body.match(/SENTIMENT_DATA: U(\d+)_A(\d+)/)
+  
+  // If still no match, try to extract from the visible scores in header
+  if (!match) {
+    // Try new format: (A75, U85)
+    const headerMatch = body.match(/\(A(\d+), U(\d+)\)/)
+    if (headerMatch) {
+      return {
+        urgencyScore: parseInt(headerMatch[2]),
+        angerScore: parseInt(headerMatch[1]),
+        noteCreatedAt: latestNote.createdAt
+      }
+    }
+    
+    // Try old format: Anger: X/100, Urgency: Y/100
+    const angerMatch = body.match(/Anger: (\d+)\/100/)
+    const urgencyMatch = body.match(/Urgency: (\d+)\/100/)
+    if (angerMatch && urgencyMatch) {
+      return {
+        urgencyScore: parseInt(urgencyMatch[1]),
+        angerScore: parseInt(angerMatch[1]),
+        noteCreatedAt: latestNote.createdAt
+      }
+    }
+  }
   
   if (!match) return null
   
@@ -293,13 +325,16 @@ async function createAnalysisNote(
   // Add header based on AI sentiment
   let header = ''
   if (aiResponse.isAngry) {
-    header = `😡 ANGRY (Anger: ${aiResponse.angerScore}/100, Urgency: ${aiResponse.urgencyScore}/100)`
+    header = `😡 ANGRY`
   } else if (aiResponse.isHighUrgency) {
-    header = `❗ HIGH URGENCY (Urgency: ${aiResponse.urgencyScore}/100, Anger: ${aiResponse.angerScore}/100)`
+    header = `❗ HIGH URGENCY`
   } else {
-    header = `💬 STANDARD (Urgency: ${aiResponse.urgencyScore}/100, Anger: ${aiResponse.angerScore}/100)`
+    header = `💬 STANDARD`
   }
   parts.push(header)
+  
+  // Add sentiment data right after header
+  parts.push(`[SENTIMENT_DATA: U${aiResponse.urgencyScore}_A${aiResponse.angerScore}]`)
   
   // Add AI analysis details if available
   if (aiResponse.sentimentReasoning) {
@@ -327,7 +362,6 @@ async function createAnalysisNote(
   // Add confidence and metadata (but not the suggested response since it's in the draft)
     if (aiResponse.confidence !== undefined) {
       parts.push(`\n📊 AI Response Confidence: ${Math.round(aiResponse.confidence * 100)}%`)
-      parts.push('(Higher confidence indicates the AI found relevant documentation and clear patterns)')
     }
     
     if (aiResponse.referencedDocs?.length) {
@@ -368,9 +402,6 @@ async function createAnalysisNote(
   if (aiResponse.usageString && !aiResponse.usageString.includes('API call failed')) {
     parts.push(`\n${aiResponse.usageString}`)
   }
-  
-  // Add hidden sentiment data for tracking (HTML comment so it's not visible in HelpScout)
-  parts.push(`\n<!-- [SENTIMENT_DATA: U${aiResponse.urgencyScore}_A${aiResponse.angerScore}] -->`)
   
   return {
     noteText: parts.join('\n'),
@@ -539,6 +570,16 @@ export default async function handler(
           for (const tag of tagsToAdd) {
             await client.addTag(conversation.id, tag)
             console.log(`Added ${tag} tag to ${conversation.id}`)
+          }
+          
+          // Re-check for AI notes right before adding to prevent race conditions
+          const finalThreadsCheck = await client.getConversationThreads(conversation.id)
+          const finalThreads = finalThreadsCheck._embedded?.threads || []
+          const recentAINotes = parsePreviousSentiment(finalThreads)
+          
+          if (recentAINotes && !isInitial) {
+            console.log(`${conversation.id}: AI note already exists (detected in final check) - skipping`)
+            continue
           }
           
           // Add note

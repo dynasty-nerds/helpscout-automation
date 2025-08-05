@@ -122,7 +122,7 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
   "referencedUrls": ["actual helpscout doc URLs for agent reference"],
   "reasoning": "Why this response addresses their issue...",
   "responseType": "billing|technical|account|general",
-  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Use \\n for line breaks."
+  "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Use bullet points starting with '- ' for lists. Format: '- Item 1\\n- Item 2\\n\\nAdditional text after bullets'"
 }`
 
     try {

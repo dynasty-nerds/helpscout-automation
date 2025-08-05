@@ -94,6 +94,6 @@ export class UsageTracker {
     // In a real app, you'd fetch all-time usage from a database
     // Round to nearest cent for cleaner display
     const roundedCost = Math.round(usage.totalCostDollars * 100) / 100
-    return `💰 Claude Usage: $${roundedCost.toFixed(2)} for this request`
+    return `💰 Claude Usage:\n- $${roundedCost.toFixed(2)} for this request`
   }
 }
