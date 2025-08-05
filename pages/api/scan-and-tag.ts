@@ -167,6 +167,8 @@ async function createAnalysisNote(
     issueSummary += 'Wants to cancel subscription'
   } else if (combinedText.includes('refund')) {
     issueSummary += 'Requesting refund'
+  } else if (combinedText.includes('espn') && (combinedText.includes('connect') || combinedText.includes('sync') || combinedText.includes('link'))) {
+    issueSummary += 'ESPN sync/connection issue'
   } else if (combinedText.includes('not working')) {
     issueSummary += 'Feature not working'
   } else if (combinedText.includes('error')) {
