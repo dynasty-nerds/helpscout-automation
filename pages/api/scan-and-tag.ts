@@ -221,6 +221,18 @@ async function createAnalysisNote(
         console.log('Relevant docs found:', relevantDocs.map(doc => ({ name: doc.name, url: doc.publicUrl })))
       }
       
+      // Always fetch the changelog/fixes document (unpublished)
+      let changelogDoc = null
+      try {
+        const changelogId = '68919485bb013911a3b209ac'
+        changelogDoc = await docsClient.getArticle(changelogId)
+        if (changelogDoc) {
+          console.log('Successfully fetched changelog document')
+        }
+      } catch (error) {
+        console.error('Failed to fetch changelog document:', error)
+      }
+      
       // Load learning files
       const { learnings, gaps } = await loadLearningFiles()
       
@@ -249,6 +261,19 @@ async function createAnalysisNote(
           url: 'internal://gaps'
         }
       ]
+      
+      // Add changelog document if available
+      if (changelogDoc) {
+        contextDocs.unshift({
+          id: changelogDoc.id,
+          name: changelogDoc.name || 'Recent Platform Changes & Fixes',
+          title: changelogDoc.name || 'Recent Platform Changes & Fixes',
+          text: changelogDoc.text || '',
+          content: changelogDoc.text || '',
+          publicUrl: changelogDoc.publicUrl,
+          url: changelogDoc.publicUrl
+        })
+      }
       
       // Get customer first name
       let customerFirstName = conversation.primaryCustomer?.firstName || undefined
