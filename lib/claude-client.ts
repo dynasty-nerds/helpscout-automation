@@ -141,7 +141,7 @@ CUSTOMER'S LATEST MESSAGE:
 ${customerMessage}
 
 ISSUE CATEGORIZATION:
-You will receive a document containing common support issue categories. Use it to determine the best category for this customer's issue. Choose the most specific category that matches their problem. If no category fits well, create a brief descriptive category (3-5 words max). This categorization helps agents quickly understand the issue type. IMPORTANT: Do not duplicate words in the category (e.g., not "Sync with ESPNSync with ESPN", just "ESPN sync issue").
+You will receive a document containing common support issue categories. Use it to determine the best category for this customer's issue. Choose the most specific category that matches their problem. If no category fits well, create a brief descriptive category (3-5 words max). This categorization helps agents quickly understand the issue type.
 
 RELATIONSHIP BETWEEN DOCUMENTS:
 - Common Support Issue Categories: Defines issue types for categorization

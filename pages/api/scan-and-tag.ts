@@ -404,8 +404,10 @@ async function createAnalysisNote(
       
       // Use AI-determined category if available
       if (aiResponse.issueCategory) {
+        console.log(`AI provided category: "${aiResponse.issueCategory}"`)
         issueSummary += aiResponse.issueCategory
       } else {
+        console.log(`Using fallback category: "${fallbackCategory}"`)
         issueSummary += fallbackCategory
       }
       
