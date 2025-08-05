@@ -408,6 +408,7 @@ async function createAnalysisNote(
         referencedDocs: claudeResponse.referencedDocs,
         referencedUrls: claudeResponse.referencedUrls,
         usageString: claudeResponse.usageString,
+        issueCategory: claudeResponse.issueCategory,
         error: false
       }
       
