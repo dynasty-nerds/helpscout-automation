@@ -364,8 +364,9 @@ async function createAnalysisNote(
       parts.push(`\n📊 AI Response Confidence: ${Math.round(aiResponse.confidence * 100)}%`)
     }
     
+    // Always show referenced documentation section
+    parts.push(`\n📚 Referenced Documentation:`)
     if (aiResponse.referencedDocs?.length) {
-      parts.push(`\n📚 Referenced Documentation:`)
       aiResponse.referencedDocs.forEach((doc, index) => {
         const url = aiResponse.referencedUrls?.[index] || ''
         if (url) {
@@ -374,6 +375,8 @@ async function createAnalysisNote(
           parts.push(`- ${doc}`)
         }
       })
+    } else {
+      parts.push(`- No documentation referenced`)
     }
     
     if (aiResponse.notesForAgent) {
