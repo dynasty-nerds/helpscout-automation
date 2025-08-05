@@ -20,6 +20,8 @@ interface ClaudeResponse {
   // Error handling
   error?: boolean
   errorMessage?: string
+  // Issue categorization
+  issueCategory?: string
 }
 
 export class ClaudeClient {
@@ -107,6 +109,9 @@ ${conversationHistory}
 CUSTOMER'S LATEST MESSAGE:
 ${customerMessage}
 
+ISSUE CATEGORIZATION:
+You will receive a document containing common support issue categories. Use it to determine the best category for this customer's issue. Choose the most specific category that matches their problem. If no category fits well, create a brief descriptive category (3-5 words max). This categorization helps agents quickly understand the issue type.
+
 SENTIMENT ANALYSIS INSTRUCTIONS:
 Before generating the response, analyze the customer's sentiment using these guidelines:
 
@@ -135,6 +140,7 @@ Scoring Guidelines:
 
 Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for line breaks within JSON string values, not actual newlines:
 {
+  "issueCategory": "Brief category from Common Support Issue Categories doc or custom 3-5 word description",
   "angerScore": 0-100,
   "urgencyScore": 0-100,
   "angerTriggers": ["specific phrases showing anger"],
@@ -272,6 +278,9 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
               urgencyTriggers = urgencyTriggersMatch[1].match(/"([^"]*)"/g)?.map((s: string) => s.replace(/"/g, '')) || []
             }
             
+            const issueCategoryMatch = jsonString.match(/"issueCategory":\s*"((?:[^"\\]|\\.)*)"/)
+            const issueCategory = issueCategoryMatch?.[1]?.replace(/\\n/g, '\n') || undefined
+            
             result = {
               suggestedResponse: suggestedResponse.replace(/\\n/g, '\n'),
               confidence,
@@ -285,7 +294,8 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
               angerTriggers,
               urgencyTriggers,
               isSpam,
-              sentimentReasoning
+              sentimentReasoning,
+              issueCategory
             }
             
             console.log('Manual extraction successful')
@@ -317,7 +327,8 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
         angerTriggers: result.angerTriggers || [],
         urgencyTriggers: result.urgencyTriggers || [],
         isSpam: result.isSpam,
-        sentimentReasoning: result.sentimentReasoning
+        sentimentReasoning: result.sentimentReasoning,
+        issueCategory: result.issueCategory
       }
 
     } catch (error: any) {

@@ -36,6 +36,71 @@ async function loadLearningFiles(): Promise<{ learnings: string; gaps: string }>
   }
 }
 
+interface IssuePattern {
+  category: string
+  patterns: Array<{
+    keywords: string[]
+    requireAll?: boolean
+  }>
+}
+
+async function loadCommonIssues(): Promise<IssuePattern[]> {
+  try {
+    const issuesPath = path.join(process.cwd(), 'common-issues.md')
+    const content = await fs.readFile(issuesPath, 'utf-8')
+    
+    // Parse the markdown file to extract patterns
+    const patterns: IssuePattern[] = []
+    const lines = content.split('\n')
+    let currentCategory = ''
+    let inCategory = false
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim()
+      
+      // Category header (### Title)
+      if (line.startsWith('### ')) {
+        currentCategory = line.substring(4)
+        inCategory = true
+      }
+      // Keywords line
+      else if (inCategory && line.startsWith('- Keywords:')) {
+        const keywordText = line.substring(11).trim()
+        
+        // Parse the keyword pattern
+        // For now, let's simplify - just extract all meaningful keywords
+        const cleanedText = keywordText
+          .toLowerCase()
+          .replace(/[()]/g, '') // Remove parentheses
+          .replace(/"/g, '') // Remove quotes
+        
+        // Split by AND or OR to get individual keywords
+        const allKeywords = cleanedText
+          .split(/\s+(and|or)\s+/i)
+          .filter(k => k && k !== 'and' && k !== 'or')
+          .map(k => k.trim())
+        
+        // Determine if it's an AND pattern (all required) or OR pattern
+        const requireAll = keywordText.includes(' AND ')
+        
+        patterns.push({
+          category: currentCategory,
+          patterns: [{
+            keywords: allKeywords,
+            requireAll: requireAll
+          }]
+        })
+      }
+    }
+    
+    return patterns
+  } catch (error) {
+    console.error('Error loading common issues:', error)
+    // Return default patterns if file not found
+    return []
+  }
+}
+
 interface PreviousSentiment {
   angerScore: number
   urgencyScore: number
@@ -59,6 +124,7 @@ interface AIResponse {
   error?: boolean
   errorMessage?: string
   usageString?: string
+  issueCategory?: string
 }
 
 interface AnalysisResult {
@@ -161,40 +227,21 @@ async function createAnalysisNote(
   const subject = (conversation.subject || '').toLowerCase()
   const combinedText = subject + ' ' + messageContent
   
-  // Create a concise issue summary
+  // We'll set the issue summary after we get the AI response
   let issueSummary = '🗃️ '
-  if (combinedText.includes('cancel')) {
-    issueSummary += 'Wants to cancel subscription'
-  } else if (combinedText.includes('refund')) {
-    issueSummary += 'Requesting refund'
-  } else if (combinedText.includes('espn') && (combinedText.includes('connect') || combinedText.includes('sync') || combinedText.includes('link'))) {
-    issueSummary += 'ESPN sync/connection issue'
-  } else if (combinedText.includes('not working')) {
-    issueSummary += 'Feature not working'
-  } else if (combinedText.includes('error')) {
-    issueSummary += 'Error with app'
-  } else if (combinedText.includes('bug')) {
-    issueSummary += 'Bug report'
-  } else if (combinedText.includes('subscription')) {
-    issueSummary += 'Subscription question'
-  } else if (combinedText.includes('help')) {
-    issueSummary += 'Needs help'
-  } else if (combinedText.includes('access')) {
-    issueSummary += 'Access issue'
-  } else if (combinedText.includes('login') || combinedText.includes('log in')) {
-    issueSummary += 'Login problem'
-  } else if (subject.length > 0) {
+  
+  // Prepare fallback category from subject
+  let fallbackCategory = ''
+  if (subject.length > 0) {
     let cleanSubject = conversation.subject
     if (cleanSubject.toLowerCase().startsWith('re:')) {
       cleanSubject = cleanSubject.substring(3).trim()
     }
     const words = cleanSubject.split(' ').slice(0, 5).join(' ')
-    issueSummary += words.length > 30 ? words.substring(0, 30) + '...' : words
+    fallbackCategory = words.length > 30 ? words.substring(0, 30) + '...' : words
   } else {
-    issueSummary += 'General inquiry'
+    fallbackCategory = 'General inquiry'
   }
-  
-  parts.push(issueSummary)
   
   // Try to get AI analysis
   let aiResponse: AIResponse
@@ -249,6 +296,15 @@ async function createAnalysisNote(
         })
       }
       
+      // Load common issues for AI context
+      let commonIssuesContent = ''
+      try {
+        const issuesPath = path.join(process.cwd(), 'common-issues.md')
+        commonIssuesContent = await fs.readFile(issuesPath, 'utf-8')
+      } catch (error) {
+        console.log('Common issues file not found, using defaults')
+      }
+      
       // Add learnings and gaps as context
       const contextDocs = [
         ...relevantDocs,
@@ -261,6 +317,11 @@ async function createAnalysisNote(
           title: 'Known Documentation Gaps',
           content: gaps,
           url: 'internal://gaps'
+        },
+        {
+          title: 'Common Support Issue Categories',
+          content: commonIssuesContent,
+          url: 'internal://common-issues'
         }
       ]
       
@@ -311,6 +372,13 @@ async function createAnalysisNote(
       
       console.log(`AI analysis complete - Anger: ${aiResponse.angerScore}/100, Urgency: ${aiResponse.urgencyScore}/100`)
       
+      // Use AI-determined category if available
+      if (aiResponse.issueCategory) {
+        issueSummary += aiResponse.issueCategory
+      } else {
+        issueSummary += fallbackCategory
+      }
+      
     } catch (error: any) {
       console.error(`Failed to generate AI analysis for conversation ${conversation.id}:`, error)
       aiResponse = {
@@ -324,6 +392,14 @@ async function createAnalysisNote(
       }
     }
   }
+  
+  // Set fallback category if AI failed or didn't provide one
+  if (!aiResponse.issueCategory) {
+    issueSummary += fallbackCategory
+  }
+  
+  // Add issue summary to the beginning
+  parts.push(issueSummary)
   
   // For errors, just return the error message
   if (aiResponse.error) {
