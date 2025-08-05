@@ -380,10 +380,11 @@ export default async function handler(
     }
     
     // Get active/pending conversations or closed based on parameter
-    const conversations = scanClosed 
+    const conversationsResponse = scanClosed 
       ? await client.getClosedConversations(limit || 50)
-      : await client.getActiveAndPendingConversations(limit)
+      : await client.getActiveConversations()
     
+    const conversations = conversationsResponse._embedded?.conversations || []
     console.log(`Found ${conversations.length} ${scanClosed ? 'closed' : 'active/pending'} conversations to process`)
     
     // Process conversations

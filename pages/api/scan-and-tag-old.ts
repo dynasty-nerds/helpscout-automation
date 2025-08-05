@@ -850,7 +850,7 @@ export default async function handler(
               // No previous AI note - always process
               shouldProcess = true
               skipReason = 'First AI analysis'
-            } else if (hasNewCustomerMessage(allThreads, previousSentiment.noteCreatedAt)) {
+            } else if (previousSentiment && hasNewCustomerMessage(allThreads, previousSentiment.noteCreatedAt)) {
               // Has new customer message - check sentiment change
               // For now, always process if there's a new message - we'll check escalation after AI analysis
               if (true) { // TODO: Move escalation check after AI analysis
@@ -858,7 +858,9 @@ export default async function handler(
                 skipReason = 'Sentiment escalation detected'
               } else {
                 shouldProcess = false
-                skipReason = `Sentiment stable (prev: U${previousSentiment.urgencyScore}/A${previousSentiment.angerScore}, curr: U${keywordSentiment.urgencyScore}/A${keywordSentiment.angerScore})`
+                // TODO: Uncomment when escalation check is implemented
+                // skipReason = `Sentiment stable (prev: U${previousSentiment.urgencyScore}/A${previousSentiment.angerScore}, curr: U${keywordSentiment.urgencyScore}/A${keywordSentiment.angerScore})`
+                skipReason = 'Sentiment stable'
               }
             } else {
               // No new customer message
