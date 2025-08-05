@@ -279,11 +279,20 @@ async function createAnalysisNote(
     parts.push(`🔺 ESCALATION - Anger: ${angerIncrease >= 0 ? '+' : ''}${angerIncrease}, Urgency: ${urgencyIncrease >= 0 ? '+' : ''}${urgencyIncrease}`)
   }
   
+  // For errors, just return the error message
+  if (aiResponse.error) {
+    return {
+      noteText: `❌ ${aiResponse.errorMessage}`,
+      aiResponse,
+      suggestedResponse: undefined,
+      error: true,
+      errorMessage: aiResponse.errorMessage
+    }
+  }
+  
   // Add header based on AI sentiment
   let header = ''
-  if (aiResponse.error) {
-    header = `⚠️ ANALYSIS ERROR`
-  } else if (aiResponse.isAngry) {
+  if (aiResponse.isAngry) {
     header = `😡 ANGRY (Anger: ${aiResponse.angerScore}/100, Urgency: ${aiResponse.urgencyScore}/100)`
   } else if (aiResponse.isHighUrgency) {
     header = `❗ HIGH URGENCY (Urgency: ${aiResponse.urgencyScore}/100, Anger: ${aiResponse.angerScore}/100)`
@@ -293,7 +302,7 @@ async function createAnalysisNote(
   parts.push(header)
   
   // Add AI analysis details if available
-  if (aiResponse.sentimentReasoning && !aiResponse.error) {
+  if (aiResponse.sentimentReasoning) {
     parts.push(`\n🤖 AI Sentiment Analysis:`)
     // Split sentiment reasoning into bullet points by sentences
     const sentimentLines = aiResponse.sentimentReasoning
@@ -304,14 +313,8 @@ async function createAnalysisNote(
     })
   }
   
-  // Add error message if analysis failed
-  if (aiResponse.error) {
-    parts.push(`\n❌ ${aiResponse.errorMessage}`)
-    parts.push('\n⚠️ Automated analysis failed. Please review manually.')
-  }
-  
   // Add triggers if detected
-  if (!aiResponse.error && (aiResponse.angerTriggers?.length || aiResponse.urgencyTriggers?.length)) {
+  if (aiResponse.angerTriggers?.length || aiResponse.urgencyTriggers?.length) {
     parts.push('\n🔍 Triggers Detected:')
     if (aiResponse.angerTriggers?.length) {
       parts.push(`- Anger: ${aiResponse.angerTriggers.join(', ')}`)
@@ -322,7 +325,6 @@ async function createAnalysisNote(
   }
   
   // Add confidence and metadata (but not the suggested response since it's in the draft)
-  if (!aiResponse.error) {
     if (aiResponse.confidence !== undefined) {
       parts.push(`\n📊 AI Response Confidence: ${Math.round(aiResponse.confidence * 100)}%`)
       parts.push('(Higher confidence indicates the AI found relevant documentation and clear patterns)')
@@ -346,15 +348,19 @@ async function createAnalysisNote(
       const noteLines = aiResponse.notesForAgent
         .split(/(?=Documentation gap:|Missing:|No |Consider:)/)
         .filter(line => line.trim())
-      noteLines.forEach(line => {
-        parts.push(line.trim())
+      noteLines.forEach((line, index) => {
+        const trimmedLine = line.trim()
+        // Check if this line starts with a keyword pattern
+        if (trimmedLine.match(/^(Documentation gap:|Missing:|No |Consider:|Recommend:)/)) {
+          parts.push(trimmedLine)
+        } else if (index > 0) {
+          // If it doesn't start with a pattern and it's not the first line, add a line break
+          parts.push(`\n${trimmedLine}`)
+        } else {
+          parts.push(trimmedLine)
+        }
       })
     }
-  } else if (aiResponse.error) {
-    // Add error message in suggested response section
-    parts.push('\n\n--- SUGGESTED RESPONSE ---')
-    parts.push('⚠️ Automated response generation failed. Please contact your administrator.')
-    parts.push('\nError details: ' + aiResponse.errorMessage)
   }
   
   // Add usage tracking
@@ -544,7 +550,7 @@ export default async function handler(
             (thread: any) => thread.type === 'reply' && thread.state === 'draft'
           )
           
-          if (analysisResult.suggestedResponse && existingDrafts.length === 0) {
+          if (analysisResult.suggestedResponse && existingDrafts.length === 0 && !analysisResult.error) {
             const customerId = conversation.primaryCustomer?.id
             if (customerId) {
               try {
