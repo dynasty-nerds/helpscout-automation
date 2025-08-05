@@ -5,6 +5,7 @@ import { ClaudeClient } from '../../lib/claude-client'
 import { HelpScoutDocsClient } from '../../lib/helpscout-docs'
 import fs from 'fs/promises'
 import path from 'path'
+import packageJson from '../../package.json'
 
 async function loadLearningFiles(): Promise<{ learnings: string; gaps: string }> {
   try {
@@ -161,7 +162,7 @@ async function createAnalysisNote(
   const combinedText = subject + ' ' + messageContent
   
   // Create a concise issue summary
-  let issueSummary = '📝 '
+  let issueSummary = '🗃️ '
   if (combinedText.includes('cancel')) {
     issueSummary += 'Wants to cancel subscription'
   } else if (combinedText.includes('refund')) {
@@ -425,6 +426,9 @@ async function createAnalysisNote(
   if (aiResponse.usageString && !aiResponse.usageString.includes('API call failed')) {
     parts.push(`\n${aiResponse.usageString}`)
   }
+  
+  // Add version footer
+  parts.push(`\n✍️ Note and suggested response written by HelpScout Automation Claude Code project v${packageJson.version}`)
   
   return {
     noteText: parts.join('\n'),
