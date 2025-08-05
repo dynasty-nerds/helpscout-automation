@@ -294,7 +294,14 @@ async function createAnalysisNote(
   
   // Add AI analysis details if available
   if (aiResponse.sentimentReasoning && !aiResponse.error) {
-    parts.push(`\n🤖 AI Sentiment Analysis:\n${aiResponse.sentimentReasoning}`)
+    parts.push(`\n🤖 AI Sentiment Analysis:`)
+    // Split sentiment reasoning into bullet points by sentences
+    const sentimentLines = aiResponse.sentimentReasoning
+      .split(/(?<=[.!?])\s+/)
+      .filter(line => line.trim())
+    sentimentLines.forEach(line => {
+      parts.push(`- ${line.trim()}`)
+    })
   }
   
   // Add error message if analysis failed
@@ -317,12 +324,12 @@ async function createAnalysisNote(
   // Add confidence and metadata (but not the suggested response since it's in the draft)
   if (!aiResponse.error) {
     if (aiResponse.confidence !== undefined) {
-      parts.push(`\n\n📊 AI Response Confidence: ${Math.round(aiResponse.confidence * 100)}%`)
+      parts.push(`\n📊 AI Response Confidence: ${Math.round(aiResponse.confidence * 100)}%`)
       parts.push('(Higher confidence indicates the AI found relevant documentation and clear patterns)')
     }
     
     if (aiResponse.referencedDocs?.length) {
-      parts.push(`\n\n📚 Referenced Documentation:`)
+      parts.push(`\n📚 Referenced Documentation:`)
       aiResponse.referencedDocs.forEach((doc, index) => {
         const url = aiResponse.referencedUrls?.[index] || ''
         if (url) {
@@ -334,7 +341,7 @@ async function createAnalysisNote(
     }
     
     if (aiResponse.notesForAgent) {
-      parts.push(`\n\n📝 Notes for Agent:`)
+      parts.push(`\n📝 Notes for Agent:`)
       // Split notes by common patterns and format each on its own line
       const noteLines = aiResponse.notesForAgent
         .split(/(?=Documentation gap:|Missing:|No |Consider:)/)
@@ -352,7 +359,7 @@ async function createAnalysisNote(
   
   // Add usage tracking
   if (aiResponse.usageString && !aiResponse.usageString.includes('API call failed')) {
-    parts.push(`\n\n${aiResponse.usageString}`)
+    parts.push(`\n${aiResponse.usageString}`)
   }
   
   // Add hidden sentiment data for tracking (HTML comment so it's not visible in HelpScout)
