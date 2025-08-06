@@ -147,6 +147,17 @@ When using the Known Issues document:
 - Focus on acknowledging the issue and that we're working on it
 - NEVER say "according to our known issues list" - just acknowledge we know about it
 
+FASTDRAFT SPECIFIC HANDLING:
+When customer mentions FastDraft, Fast Draft, or promo code issues:
+1. CHECK Known Issues for FastDraft entry FIRST
+2. If Known Issues mentions a Google Sheet for looking up codes:
+   - DO NOT say you'll activate their subscription
+   - Instead say: "I'll look up your FastDraft code in our system"
+   - Add to notesForAgent: "Look up customer's FastDraft code in the Google Sheet linked in Known Issues document: [include the Google Sheet URL from Known Issues]"
+3. DO NOT hallucinate about activating subscriptions - agents lookup and provide codes
+4. Reference the FastDraft promotion documentation for activation instructions
+5. The customer activates themselves using the code when signing up
+
 PAYMENT PROOF PATTERN:
 When a customer shows payment proof (PayPal, Stripe, App Store, etc.) but it's NOT in MemberPress:
 1. CHECK Known Issues for payment sync issues matching their payment method
@@ -392,13 +403,14 @@ CRITICAL RESPONSE GENERATION RULES:
 2. You MUST check Known Issues SECOND - especially for payment gateway issues (PayPal, Stripe, Apple Pay, etc.)
 3. PAYMENT NOT IN MEMBERPRESS = CHECK KNOWN ISSUES: If customer paid but payment isn't in MemberPress, this likely matches a Known Issue
 4. If Known Issues mentions "PayPal renewal issue" and customer has PayPal payment problems, you MUST acknowledge this known issue
-5. NEVER suggest actions we will take (like "I'll refresh your sync") - only provide steps the customer can take themselves
-6. NEVER hallucinate solutions - ALL troubleshooting steps MUST come from the provided documentation
-7. If Fix Changelog has ANY fix related to the customer's platform + issue type, you MUST use that fix
-8. DO NOT make up wait times, refresh instructions, or sync processes that aren't in the documentation
-9. ROLLOVER = SYNC ISSUES: When customer mentions "not synced since last season/year", CHECK FOR ROLLOVER FIXES FIRST
-10. The Fix Changelog is your BIBLE - if a fix exists there for the customer's issue, that's your primary solution
-11. Known Issues is your SECOND BIBLE - if an issue matches Known Issues, you MUST reference it in your response and referencedDocs`
+5. FASTDRAFT = CHECK KNOWN ISSUES: FastDraft issues MUST reference Known Issues if it contains FastDraft information
+6. NEVER suggest actions we will take (like "I'll refresh your sync" or "I'll activate your subscription") - only provide steps the customer can take themselves
+7. NEVER hallucinate solutions - ALL troubleshooting steps MUST come from the provided documentation
+8. If Fix Changelog has ANY fix related to the customer's platform + issue type, you MUST use that fix
+9. DO NOT make up wait times, refresh instructions, or sync processes that aren't in the documentation
+10. ROLLOVER = SYNC ISSUES: When customer mentions "not synced since last season/year", CHECK FOR ROLLOVER FIXES FIRST
+11. The Fix Changelog is your BIBLE - if a fix exists there for the customer's issue, that's your primary solution
+12. Known Issues is your SECOND BIBLE - if an issue matches Known Issues, you MUST reference it in your response and referencedDocs`
 
     try {
       const response = await axios.post(
