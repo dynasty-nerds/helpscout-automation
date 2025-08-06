@@ -226,6 +226,18 @@ IMPORTANT: The conversation history above includes both customer messages and ag
 - If an agent already suggested the standard fix, acknowledge it and provide next steps
 - Build upon previous responses rather than starting over
 
+RESOLUTION DETECTION:
+Check if the issue appears resolved:
+1. If agent provided a solution AND customer responds with ONLY:
+   - "Thanks" / "Thank you" / "Thanks!"
+   - "That worked" / "Perfect" / "Great"
+   - "All set" / "Got it" / "Fixed"
+   - Similar brief acknowledgments (< 10 words)
+2. AND no new issues are mentioned
+3. THEN: Set suggestedResponse to "✓ Issue appears to be resolved"
+4. Add to notesForAgent: "Customer confirmed resolution. If issue persists, please delete this note to regenerate analysis."
+5. DO NOT suggest further troubleshooting if customer confirmed it's working
+
 CUSTOMER'S LATEST MESSAGE:
 ${customerMessage}
 
