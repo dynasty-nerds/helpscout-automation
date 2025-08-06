@@ -22,6 +22,10 @@ interface ClaudeResponse {
   errorMessage?: string
   // Issue categorization
   issueCategory?: string
+  // Usage tracking
+  cost?: number
+  inputTokens?: number
+  outputTokens?: number
 }
 
 export class ClaudeClient {
@@ -173,6 +177,36 @@ ${customerMessage}
 
 ISSUE CATEGORIZATION:
 You will receive a document containing common support issue categories. Use it to determine the best category for this customer's issue. Choose the most specific category that matches their problem. If no category fits well, create a brief descriptive category (3-5 words max). This categorization helps agents quickly understand the issue type.
+
+MEMBERPRESS SUBSCRIPTION CATEGORIES:
+If the customer mentions any of these keywords, categorize as "MemberPress Access Issue":
+- Can't access app/premium features
+- Being asked to pay/upgrade when they shouldn't be
+- Lost access to content they had before
+- "No premium" or "premium locked"
+
+If the customer mentions any of these keywords, categorize as "MemberPress Billing Query":
+- How much they're paying
+- Billing history questions
+- Claiming grandfathered rate
+- Transaction/charge questions
+
+If the customer mentions any of these keywords, categorize as "MemberPress Cancellation":
+- Cancel subscription
+- Want refund
+- Stop billing
+- Unsubscribe
+
+MEMBERPRESS DATA HANDLING:
+When MemberPress Subscription Data is provided in the conversation history:
+1. Always say "I've checked your account" when referencing their subscription status
+2. For userFound: false → "I couldn't find any subscription history for [email]. This could mean you either haven't signed up yet, or you may have used a different email address when subscribing."
+3. For hasTransactions: false → "I found your account but don't see any subscription history. If you believe you should have access, you may have subscribed using a different email address."
+4. For hasActiveSubscription: true → Mention the subscription type and expiration date
+5. For hasActiveSubscription: false → Check the most recent transaction date
+6. For gateway: 'manual' → Direct to App Store cancellation
+7. For other gateways → Offer to process cancellation directly
+8. Be specific with dates and amounts when available in the transaction history
 
 RELATIONSHIP BETWEEN DOCUMENTS:
 - Common Support Issue Categories: Defines issue types for categorization
@@ -404,6 +438,7 @@ CRITICAL RESPONSE GENERATION RULES:
       
       const usage = await this.usageTracker.trackUsage(inputTokens, outputTokens)
       const usageString = this.usageTracker.formatUsageString(usage)
+      const cost = this.estimateCost(inputTokens, outputTokens)
       
       return {
         suggestedResponse: result.suggestedResponse,
@@ -420,12 +455,35 @@ CRITICAL RESPONSE GENERATION RULES:
         urgencyTriggers: result.urgencyTriggers || [],
         isSpam: result.isSpam,
         sentimentReasoning: result.sentimentReasoning,
-        issueCategory: result.issueCategory
+        issueCategory: result.issueCategory,
+        cost,
+        inputTokens,
+        outputTokens
       }
 
     } catch (error: any) {
       console.error('Claude API error:', error.response?.data || error.message)
       console.error('Full error:', JSON.stringify(error.response?.data || error, null, 2))
+      
+      // Check for specific error types
+      let errorMessage = error.message
+      let notesForAgent = `Error calling Claude API: ${error.message}`
+      
+      if (error.response?.data?.error?.type === 'invalid_request_error' && 
+          error.response?.data?.error?.message?.includes('credit balance is too low')) {
+        errorMessage = 'Claude API: Credit balance too low'
+        notesForAgent = 'CLAUDE API ERROR: Credit balance is too low. Please add credits to your Anthropic account at https://console.anthropic.com/settings/plans'
+        console.error('⚠️  CREDIT BALANCE TOO LOW - Please add credits to your Anthropic account')
+      } else if (error.response?.status === 400) {
+        errorMessage = `Claude API: Bad request (${error.response?.data?.error?.message || 'Unknown error'})`
+        notesForAgent = `CLAUDE API ERROR (400): ${error.response?.data?.error?.message || 'Bad request'}`
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Claude API: Authentication failed'
+        notesForAgent = 'CLAUDE API ERROR: Authentication failed. Please check your API key.'
+      } else if (error.response?.status === 429) {
+        errorMessage = 'Claude API: Rate limit exceeded'
+        notesForAgent = 'CLAUDE API ERROR: Rate limit exceeded. Please try again later.'
+      }
       
       // Fallback response if Claude fails
       return {
@@ -435,7 +493,7 @@ CRITICAL RESPONSE GENERATION RULES:
         referencedUrls: [],
         reasoning: "Fallback response due to API error",
         responseType: "general",
-        notesForAgent: `Error calling Claude API: ${error.message}`,
+        notesForAgent,
         usageString: '💰 Claude Usage: $0.0000 for this request (API call failed)',
         angerScore: 0,
         urgencyScore: 0,
@@ -444,7 +502,7 @@ CRITICAL RESPONSE GENERATION RULES:
         isSpam: false,
         sentimentReasoning: 'Failed to analyze sentiment due to API error',
         error: true,
-        errorMessage: error.message
+        errorMessage
       }
     }
   }

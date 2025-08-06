@@ -3,6 +3,7 @@ import { HelpScoutClient } from '../../lib/helpscout-client'
 import { TeamsClient } from '../../lib/teams-client'
 import { ClaudeClient } from '../../lib/claude-client'
 import { HelpScoutDocsClient } from '../../lib/helpscout-docs'
+import { memberPressService } from '../../src/services/memberPressService'
 import fs from 'fs/promises'
 import path from 'path'
 import packageJson from '../../package.json'
@@ -125,6 +126,9 @@ interface AIResponse {
   errorMessage?: string
   usageString?: string
   issueCategory?: string
+  cost?: number
+  inputTokens?: number
+  outputTokens?: number
 }
 
 interface AnalysisResult {
@@ -259,7 +263,10 @@ async function createAnalysisNote(
     }
   } else {
     try {
-      console.log(`Generating AI analysis for conversation ${conversation.id}`)
+      console.log(`🤖 CLAUDE API CALL: Generating AI analysis for conversation ${conversation.id}`)
+      console.log(`   Customer: ${conversation.primaryCustomer?.email || 'Unknown'}`)
+      console.log(`   Subject: ${conversation.subject || 'No subject'}`)
+      console.log(`   Message length: ${customerMessage.length} chars`)
       
       // Get relevant documentation
       const cachedArticles = await docsClient.getCachedArticles()
@@ -368,6 +375,38 @@ async function createAnalysisNote(
         })
       }
       
+      // Check if we need MemberPress data based on the message content
+      let memberPressContext = null
+      const customerEmail = conversation.primaryCustomer?.email
+      if (customerEmail) {
+        const lowerMessage = customerMessage.toLowerCase()
+        const needsMemberPress = 
+          lowerMessage.includes('access') ||
+          lowerMessage.includes('premium') ||
+          lowerMessage.includes('subscription') ||
+          lowerMessage.includes('billing') ||
+          lowerMessage.includes('cancel') ||
+          lowerMessage.includes('refund') ||
+          lowerMessage.includes('grandfathered') ||
+          lowerMessage.includes('pay') ||
+          lowerMessage.includes('upgrade')
+        
+        if (needsMemberPress) {
+          console.log(`Fetching MemberPress data for ${customerEmail}`)
+          try {
+            memberPressContext = await memberPressService.getMemberPressContext(customerEmail)
+            console.log('MemberPress data retrieved:', JSON.stringify(memberPressContext, null, 2))
+            
+            // Add MemberPress data to conversation history
+            conversationHistory += `\n\nMemberPress Subscription Data:
+User Email: ${customerEmail}
+${JSON.stringify(memberPressContext, null, 2)}\n`
+          } catch (error) {
+            console.error('Error fetching MemberPress data:', error)
+          }
+        }
+      }
+      
       // Get customer first name
       console.log(`Extracting customer first name for conversation ${conversation.id}`)
       console.log(`primaryCustomer object:`, JSON.stringify(conversation.primaryCustomer, null, 2))
@@ -409,6 +448,9 @@ async function createAnalysisNote(
         referencedUrls: claudeResponse.referencedUrls,
         usageString: claudeResponse.usageString,
         issueCategory: claudeResponse.issueCategory,
+        cost: claudeResponse.cost,
+        inputTokens: claudeResponse.inputTokens,
+        outputTokens: claudeResponse.outputTokens,
         error: false
       }
       
@@ -449,12 +491,22 @@ async function createAnalysisNote(
   // Add issue summary to the beginning
   parts.push(issueSummary)
   
-  // For errors, just return the error message
+  // For errors, return a clean error note without all the extra sections
   if (aiResponse.error) {
+    let errorNote = ''
+    
+    // Use the notesForAgent content if available, otherwise use error message
+    if (aiResponse.notesForAgent) {
+      errorNote = `❌ ${aiResponse.notesForAgent}`
+    } else {
+      errorNote = `❌ Error calling Claude API: ${aiResponse.errorMessage}`
+    }
+    
+    // Don't include any other sections - just the error message
     return {
-      noteText: `❌ ${aiResponse.errorMessage}`,
+      noteText: errorNote,
       aiResponse,
-      suggestedResponse: undefined,
+      suggestedResponse: undefined, // No draft reply on error
       error: true,
       errorMessage: aiResponse.errorMessage
     }
@@ -669,6 +721,11 @@ export default async function handler(
       taggedCount: 0,
       notesAdded: 0,
       errors: 0,
+      claudeApiCalls: 0,
+      skippedDuplicate: 0,
+      totalCost: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
       urgentTickets: [] as any[],
       angryTickets: [] as any[],
       spamTickets: [] as any[]
@@ -712,10 +769,12 @@ export default async function handler(
         }
         
         if (!shouldProcess) {
+          results.skippedDuplicate++
           continue
         }
         
         // Generate AI analysis and note
+        console.log(`📊 Processing conversation ${conversation.id} - Making Claude API call #${results.claudeApiCalls + 1}`)
         const analysisResult = await createAnalysisNote(
           conversation,
           claudeClient,
@@ -723,6 +782,16 @@ export default async function handler(
           previousSentiment,
           isInitial
         )
+        
+        // Track if Claude was actually called and accumulate costs
+        if (analysisResult.aiResponse && !analysisResult.error) {
+          results.claudeApiCalls++
+          if (analysisResult.aiResponse.cost) {
+            results.totalCost += analysisResult.aiResponse.cost
+            results.totalInputTokens += analysisResult.aiResponse.inputTokens || 0
+            results.totalOutputTokens += analysisResult.aiResponse.outputTokens || 0
+          }
+        }
         
         // Skip if sentiment didn't escalate (for incremental flow)
         if (!isInitial && !analysisResult.noteText) {
@@ -848,6 +917,15 @@ export default async function handler(
     results.urgentTickets.sort((a, b) => b.urgencyScore - a.urgencyScore)
     results.angryTickets.sort((a, b) => b.angerScore - a.angerScore)
     
+    // Log cost summary
+    console.log('\n💰 CLAUDE API COST SUMMARY:')
+    console.log(`- Total API calls: ${results.claudeApiCalls}`)
+    console.log(`- Skipped (already processed): ${results.skippedDuplicate}`)
+    console.log(`- Total input tokens: ${results.totalInputTokens.toLocaleString()}`)
+    console.log(`- Total output tokens: ${results.totalOutputTokens.toLocaleString()}`)
+    console.log(`- TOTAL COST: $${results.totalCost.toFixed(4)}`)
+    console.log(`- Average cost per call: $${results.claudeApiCalls > 0 ? (results.totalCost / results.claudeApiCalls).toFixed(4) : '0.0000'}`)
+    
     // Return results
     res.status(200).json({
       success: true,
@@ -860,9 +938,17 @@ export default async function handler(
       notesAdded: results.notesAdded,
       errors: results.errors,
       urgentTickets: results.urgentTickets,
+      claudeApiUsage: {
+        apiCalls: results.claudeApiCalls,
+        skippedDuplicate: results.skippedDuplicate,
+        totalCost: `$${results.totalCost.toFixed(4)}`,
+        totalInputTokens: results.totalInputTokens,
+        totalOutputTokens: results.totalOutputTokens,
+        averageCostPerCall: results.claudeApiCalls > 0 ? `$${(results.totalCost / results.claudeApiCalls).toFixed(4)}` : '$0.0000'
+      },
       message: dryRun 
-        ? `DRY RUN: Would tag ${results.taggedCount} tickets and add ${results.notesAdded} notes`
-        : `Tagged ${results.taggedCount} tickets and added ${results.notesAdded} notes`,
+        ? `DRY RUN: Would tag ${results.taggedCount} tickets and add ${results.notesAdded} notes. Cost: $${results.totalCost.toFixed(4)}`
+        : `Tagged ${results.taggedCount} tickets and added ${results.notesAdded} notes. Cost: $${results.totalCost.toFixed(4)}`,
       timestamp: new Date().toISOString(),
       dryRun,
       limitApplied: limit
