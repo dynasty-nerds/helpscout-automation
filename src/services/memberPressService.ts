@@ -9,6 +9,8 @@ interface Transaction {
   total: number;
   created_at: Date;
   expires_at?: Date;
+  product_name?: string;
+  period_type?: 'months' | 'years';
 }
 
 interface Subscription {
@@ -40,11 +42,13 @@ interface MemberPressContext {
   hasActiveSubscription?: boolean;
   activeSubscription?: any;
   expiresAt?: Date;
+  firstTransactionDate?: Date;
   recentTransactions?: Array<{
     date: Date;
     amount: number;
     status: string;
     gateway: string;
+    productName?: string;
   }>;
   message?: string;
   error?: string;
@@ -63,7 +67,6 @@ class MemberPressService {
       connectionLimit: 5, // Reduced from 10 to prevent connection exhaustion
       waitForConnections: true,
       queueLimit: 10, // Added queue limit to prevent infinite waiting
-      acquireTimeout: 10000, // 10 second timeout for acquiring connection
       connectTimeout: 10000 // 10 second connection timeout
     });
   }
@@ -141,6 +144,25 @@ class MemberPressService {
     }
   }
 
+  async getFirstTransactionDate(email: string): Promise<Date | null> {
+    const userId = await this.getUserIdByEmail(email);
+    if (!userId) return null;
+
+    const query = `
+      SELECT MIN(created_at) as first_transaction_date
+      FROM sri_mepr_transactions
+      WHERE user_id = ? AND status = 'complete'
+    `;
+
+    try {
+      const [rows] = await this.pool.execute<mysql.RowDataPacket[]>(query, [userId]);
+      return rows[0]?.first_transaction_date || null;
+    } catch (error) {
+      console.error('Error getting first transaction date:', error);
+      return null;
+    }
+  }
+
   async getTransactionHistory(email: string, limit: number = 10): Promise<Transaction[]> {
     const userId = await this.getUserIdByEmail(email);
     if (!userId) return [];
@@ -184,6 +206,7 @@ class MemberPressService {
       
       const activeStatus = await this.hasActiveTransaction(email);
       const recentTransactions = await this.getTransactionHistory(email, 5);
+      const firstTransactionDate = await this.getFirstTransactionDate(email);
       
       // Check if user exists but has no transactions
       if (recentTransactions.length === 0) {
@@ -202,11 +225,13 @@ class MemberPressService {
         hasActiveSubscription: activeStatus.isActive,
         activeSubscription: activeStatus.subscription,
         expiresAt: activeStatus.expiresAt,
+        firstTransactionDate: firstTransactionDate || undefined,
         recentTransactions: recentTransactions.map(t => ({
           date: t.created_at,
           amount: parseFloat(t.total.toString()),
           status: t.status,
-          gateway: t.gateway
+          gateway: t.gateway,
+          productName: t.product_name && t.period_type ? this.getSubscriptionType(t.product_name, t.period_type) : undefined
         }))
       };
     } catch (error: any) {

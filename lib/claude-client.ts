@@ -22,6 +22,8 @@ interface ClaudeResponse {
   errorMessage?: string
   // Issue categorization
   issueCategory?: string
+  // MemberPress information
+  memberPressInfo?: string
   // Usage tracking
   cost?: number
   inputTokens?: number
@@ -180,7 +182,7 @@ When a customer reports something that SHOULD work but doesn't:
 1. Identify bugs vs feature requests:
    - Bug: Existing functionality that's broken, not working as expected, errors, crashes
    - Feature request: New functionality they want added
-2. For APP BUGS (NOT payment/subscription issues), add to notesForAgent: "Bug detected: [describe the bug]. Consider adding to GitHub project Support Issues column if dev team should be aware: https://github.com/orgs/dynasty-nerds/projects/1 - If existing bug, add this HelpScout ticket link to track affected users."
+2. For APP BUGS (NOT payment/subscription issues), add to notesForAgent: "Bug detected: [describe the bug]. Consider adding to GitHub project Support Issues column if dev team should be aware: https://github.com/orgs/dynasty-nerds/projects/1 - If existing bug, add this HelpScout ticket link to the existing GitHub issue to track affected users."
 3. App bugs that GET GitHub link:
    - League sync issues (not updating, players missing)
    - App crashes or errors
@@ -257,6 +259,25 @@ When MemberPress Subscription Data is provided in the conversation history:
 6. For gateway: 'manual' → Direct to App Store cancellation
 7. For other gateways → Offer to process cancellation directly
 8. Be specific with dates and amounts when available in the transaction history
+
+MEMBERPRESS INFORMATION EXTRACTION:
+When MemberPress data is available, extract and format the following for memberPressInfo field:
+- Last transaction date and amount (from recentTransactions array, first item)
+- Product type from last transaction (e.g., "Bundle Monthly", "GM Only Yearly", "NerdHerd Only Monthly")
+- Gateway from last transaction (e.g., "Stripe", "PayPal", "manual" for App Store)
+- First transaction date (from firstTransactionDate field if available)
+- Customer tenure (calculate from first transaction to today)
+Format as: "Last Transaction: [date] - $[amount] - [product] via [gateway]\\nFirst Transaction: [date] ([X years/months] customer)\\nCurrent Status: [Active/Expired on date]"
+If no MemberPress data available, leave memberPressInfo empty
+
+LONG-TIME MEMBER APPRECIATION:
+When MemberPress data shows firstTransactionDate AND this is the FIRST response in the conversation (no previous agent responses):
+- Calculate tenure from firstTransactionDate to today
+- If tenure >= 2 years: Start response with "First, I want to thank you for being a Dynasty Nerds member for the past [X] years. We appreciate your support throughout the years.\\n\\n" BEFORE addressing their issue
+- Round years to nearest whole number (2.1 years = "2 years", 2.8 years = "3 years")
+- Only add this appreciation message for customers with 2+ years tenure
+- CRITICAL: Only add appreciation in FIRST response - check conversation history for any previous agent responses
+- If there are ANY previous agent responses in the conversation history, DO NOT add the appreciation message
 
 CRITICAL: Only reference payments/transactions that appear in the MemberPress data. Do NOT mention any payments the customer claims to have made unless they appear in the MemberPress transaction history. If the customer mentions a payment that doesn't appear in MemberPress data, acknowledge their claim but clarify what our records show.
 
@@ -340,6 +361,7 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
   "referencedUrls": ["actual helpscout doc URLs for agent reference"],
   "reasoning": "Why this response addresses their issue...",
   "responseType": "billing|technical|account|general",
+  "memberPressInfo": "Last Transaction: [date] - $[amount] - [product] via [gateway]\\nFirst Transaction: [date] ([X years/months] customer)\\nCurrent Status: [Active until date/Expired on date]",
   "notesForAgent": "Any missing documentation, suggested improvements, or important context for the agent. Use bullet points starting with '- ' for lists. Format: '- Item 1\\n- Item 2\\n\\nAdditional text after bullets'. DO NOT say Fix Changelog is missing information if the fix is actually there - verify before claiming something is missing."
 }
 
@@ -493,6 +515,9 @@ CRITICAL RESPONSE GENERATION RULES:
             const issueCategoryMatch = jsonString.match(/"issueCategory":\s*"((?:[^"\\]|\\.)*)"/)
             const issueCategory = issueCategoryMatch?.[1]?.replace(/\\n/g, '\n') || undefined
             
+            const memberPressInfoMatch = jsonString.match(/"memberPressInfo":\s*"((?:[^"\\]|\\.)*)"/)
+            const memberPressInfo = memberPressInfoMatch?.[1]?.replace(/\\n/g, '\n') || undefined
+            
             result = {
               suggestedResponse: suggestedResponse.replace(/\\n/g, '\n'),
               confidence,
@@ -507,7 +532,8 @@ CRITICAL RESPONSE GENERATION RULES:
               urgencyTriggers,
               isSpam,
               sentimentReasoning,
-              issueCategory
+              issueCategory,
+              memberPressInfo
             }
             
             console.log('Manual extraction successful')
@@ -542,6 +568,7 @@ CRITICAL RESPONSE GENERATION RULES:
         isSpam: result.isSpam,
         sentimentReasoning: result.sentimentReasoning,
         issueCategory: result.issueCategory,
+        memberPressInfo: result.memberPressInfo,
         cost,
         inputTokens,
         outputTokens
