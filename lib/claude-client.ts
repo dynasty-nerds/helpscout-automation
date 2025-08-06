@@ -214,14 +214,28 @@ CRITICAL: Only reference payments/transactions that appear in the MemberPress da
 Example: If customer says "I paid on July 30th" but MemberPress shows last payment June 30th, say:
 "I've checked your account and I see your most recent payment in our system was on June 30th for $2.99. Your subscription expired on July 30th. I don't see the July 30th payment you mentioned in our records."
 
+PAYMENT SYNC FACTS:
+- ALL payments sync instantly to our system - there is NO delay
+- PayPal, Stripe, manual payments - all appear immediately in MemberPress
+- NEVER tell customers to "wait a day or two" for payments to sync
+- If a payment isn't showing, it either failed or was made with a different email
+- Signing out and back in does NOT help with payment issues
+
+SCREENSHOT HANDLING:
+- ALWAYS check if customer mentioned providing screenshots/attachments
+- Common phrases: "see attached", "I've attached", "screenshots below", "here's a screenshot"
+- NEVER ask for screenshots if customer already said they provided them
+- Acknowledge their screenshots: "I see the screenshots you provided"
+
 RELATIONSHIP BETWEEN DOCUMENTS:
 - Common Support Issue Categories: Defines issue types for categorization
 - Fix Changelog: Contains specific fixes with implementation dates and instructions
 - Known Issues: Contains currently active issues we're aware of and working on
 - These may overlap - an issue category might have a recent fix OR be a known active issue
 - When an issue matches multiple documents, reference ALL applicable ones
-- Priority: Fix Changelog (check FIRST for solutions) > Known Issues (active problems) > General docs
+- Priority: Fix Changelog (check FIRST for solutions) > Known Issues (check SECOND for active problems) > General docs
 - ALWAYS check Fix Changelog FIRST for any issue the customer mentions
+- ALWAYS check Known Issues SECOND - especially for payment gateway issues (PayPal, Stripe, etc.)
 
 SENTIMENT ANALYSIS INSTRUCTIONS:
 Before generating the response, analyze the customer's sentiment using these guidelines:
@@ -269,12 +283,14 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
 
 CRITICAL RESPONSE GENERATION RULES:
 1. You MUST check the Fix Changelog FIRST - if it contains a fix for the issue category you identified, you MUST use those exact instructions
-2. NEVER suggest actions we will take (like "I'll refresh your sync") - only provide steps the customer can take themselves
-3. NEVER hallucinate solutions - ALL troubleshooting steps MUST come from the provided documentation
-4. If Fix Changelog has ANY fix related to the customer's platform + issue type, you MUST use that fix
-5. DO NOT make up wait times, refresh instructions, or sync processes that aren't in the documentation
-6. ROLLOVER = SYNC ISSUES: When customer mentions "not synced since last season/year", CHECK FOR ROLLOVER FIXES FIRST
-7. The Fix Changelog is your BIBLE - if a fix exists there for the customer's issue, that's your primary solution`
+2. You MUST check Known Issues SECOND - especially for payment gateway issues (PayPal, Stripe, Apple Pay, etc.)
+3. NEVER suggest actions we will take (like "I'll refresh your sync") - only provide steps the customer can take themselves
+4. NEVER hallucinate solutions - ALL troubleshooting steps MUST come from the provided documentation
+5. If Fix Changelog has ANY fix related to the customer's platform + issue type, you MUST use that fix
+6. DO NOT make up wait times, refresh instructions, or sync processes that aren't in the documentation
+7. ROLLOVER = SYNC ISSUES: When customer mentions "not synced since last season/year", CHECK FOR ROLLOVER FIXES FIRST
+8. The Fix Changelog is your BIBLE - if a fix exists there for the customer's issue, that's your primary solution
+9. Known Issues is your SECOND BIBLE - if an issue matches Known Issues (especially payment issues), acknowledge it's a known problem`
 
     try {
       const response = await axios.post(
