@@ -357,8 +357,8 @@ async function createAnalysisNote(
           title: changelogDoc.name || 'Recent Platform Changes & Fixes',
           text: changelogDoc.text || '',
           content: changelogDoc.text || '',
-          publicUrl: changelogDoc.publicUrl,
-          url: changelogDoc.publicUrl
+          publicUrl: 'https://secure.helpscout.net/docs/5f285c7e04286342d763acc4/article/68919485bb013911a3b209ac/',
+          url: 'https://secure.helpscout.net/docs/5f285c7e04286342d763acc4/article/68919485bb013911a3b209ac/'
         })
       }
       
@@ -370,8 +370,8 @@ async function createAnalysisNote(
           title: knownIssuesDoc.name || 'Known Issues',
           text: knownIssuesDoc.text || '',
           content: knownIssuesDoc.text || '',
-          publicUrl: knownIssuesDoc.publicUrl,
-          url: knownIssuesDoc.publicUrl
+          publicUrl: 'https://secure.helpscout.net/docs/5f285c7e04286342d763acc4/article/68919c52816719208b5a1a93/',
+          url: 'https://secure.helpscout.net/docs/5f285c7e04286342d763acc4/article/68919c52816719208b5a1a93/'
         })
       }
       
