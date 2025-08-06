@@ -4,6 +4,7 @@ import { TeamsClient } from '../../lib/teams-client'
 import { ClaudeClient } from '../../lib/claude-client'
 import { HelpScoutDocsClient } from '../../lib/helpscout-docs'
 import { memberPressService } from '../../src/services/memberPressService'
+import { fastDraftService } from '../../src/services/fastDraftService'
 import fs from 'fs/promises'
 import path from 'path'
 import packageJson from '../../package.json'
@@ -404,6 +405,46 @@ User Email: ${customerEmail}
 ${JSON.stringify(memberPressContext, null, 2)}\n`
           } catch (error) {
             console.error('Error fetching MemberPress data:', error)
+          }
+        }
+
+        // Check if we need FastDraft code lookup
+        // Check tags for fastdraft
+        const hasFastDraftTag = conversation.tags?.some((tag: any) => 
+          tag.tag?.toLowerCase().includes('fastdraft') || 
+          tag.name?.toLowerCase().includes('fastdraft')
+        )
+        
+        // Check subject for FastDraft
+        const subjectLower = (conversation.subject || '').toLowerCase()
+        
+        const needsFastDraft = 
+          hasFastDraftTag ||
+          lowerMessage.includes('fastdraft') ||
+          lowerMessage.includes('fast draft') ||
+          subjectLower.includes('fastdraft') ||
+          subjectLower.includes('fast draft')
+        
+        if (needsFastDraft) {
+          console.log(`Checking for FastDraft code for ${customerEmail}`)
+          try {
+            const fastDraftResult = await fastDraftService.getCodeByEmail(customerEmail)
+            if (fastDraftResult.found) {
+              console.log(`Found FastDraft code for ${customerEmail}: ${fastDraftResult.code}`)
+              conversationHistory += `\n\nFastDraft Code Lookup:
+Customer Email: ${customerEmail}
+Code Found: Yes
+Code: ${fastDraftResult.code}
+Note: This code has been automatically retrieved from the FastDraft spreadsheet.\n`
+            } else {
+              console.log(`No FastDraft code found for ${customerEmail}`)
+              conversationHistory += `\n\nFastDraft Code Lookup:
+Customer Email: ${customerEmail}
+Code Found: No
+Note: No code found in the FastDraft spreadsheet for this email address.\n`
+            }
+          } catch (error) {
+            console.error('Error fetching FastDraft code:', error)
           }
         }
       }
