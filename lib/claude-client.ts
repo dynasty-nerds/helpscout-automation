@@ -251,14 +251,16 @@ If the customer mentions any of these keywords, categorize as "MemberPress Cance
 
 MEMBERPRESS DATA HANDLING:
 When MemberPress Subscription Data is provided in the conversation history:
-1. Always say "I've checked your account" when referencing their subscription status
-2. For userFound: false → "I couldn't find any subscription history for [email]. This could mean you either haven't signed up yet, or you may have used a different email address when subscribing."
-3. For hasTransactions: false → "I found your account but don't see any subscription history. If you believe you should have access, you may have subscribed using a different email address."
-4. For hasActiveSubscription: true → Mention the subscription type and expiration date
+1. ONLY mention subscription status if it's RELEVANT to their issue:
+   - If they mention access problems, billing questions, or cancellation → Reference their account status
+   - If they're reporting bugs, feature requests, or sync issues → DO NOT mention subscription status
+2. For userFound: false AND access issues → "I couldn't find any subscription history for [email]. This could mean you either haven't signed up yet, or you may have used a different email address when subscribing."
+3. For hasTransactions: false AND access issues → "I found your account but don't see any subscription history. If you believe you should have access, you may have subscribed using a different email address."
+4. For hasActiveSubscription: true → ONLY mention if relevant to their issue (billing, access, cancellation)
 5. For hasActiveSubscription: false → Check the most recent transaction date IN THE MEMBERPRESS DATA
 6. For gateway: 'manual' → Direct to App Store cancellation
 7. For other gateways → Offer to process cancellation directly
-8. Be specific with dates and amounts when available in the transaction history
+8. Be specific with dates and amounts ONLY when relevant to the customer's question
 
 MEMBERPRESS INFORMATION EXTRACTION:
 When MemberPress data is available, extract and format the following for memberPressInfo field:
