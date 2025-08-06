@@ -180,7 +180,7 @@ When a customer reports something that SHOULD work but doesn't:
 1. Identify bugs vs feature requests:
    - Bug: Existing functionality that's broken, not working as expected, errors, crashes
    - Feature request: New functionality they want added
-2. For APP BUGS (NOT payment/subscription issues), add to notesForAgent: "Bug detected: [describe the bug]. Add to GitHub project Support Issues column: https://github.com/orgs/dynasty-nerds/projects/1 - If existing bug, add this HelpScout ticket link to track affected users."
+2. For APP BUGS (NOT payment/subscription issues), add to notesForAgent: "Bug detected: [describe the bug]. Consider adding to GitHub project Support Issues column if dev team should be aware: https://github.com/orgs/dynasty-nerds/projects/1 - If existing bug, add this HelpScout ticket link to track affected users."
 3. App bugs that GET GitHub link:
    - League sync issues (not updating, players missing)
    - App crashes or errors
