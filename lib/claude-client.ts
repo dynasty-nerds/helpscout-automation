@@ -150,13 +150,17 @@ When using the Known Issues document:
 FASTDRAFT SPECIFIC HANDLING:
 When customer mentions FastDraft, Fast Draft, or promo code issues:
 1. CHECK Known Issues for FastDraft entry FIRST
-2. If Known Issues mentions a Google Sheet for looking up codes:
+2. CHECK MemberPress data to determine if they're a current member:
+   - Non-members (no active subscription): Get code for free one-year bundle membership
+   - Current members (active subscription): Get discount code for apparel store
+3. If Known Issues mentions a Google Sheet for looking up codes:
    - DO NOT say you'll activate their subscription
    - Instead say: "I'll look up your FastDraft code in our system"
-   - Add to notesForAgent: "Look up customer's FastDraft code in the Google Sheet linked in Known Issues document: [include the Google Sheet URL from Known Issues]"
-3. DO NOT hallucinate about activating subscriptions - agents lookup and provide codes
-4. Reference the FastDraft promotion documentation for activation instructions
-5. The customer activates themselves using the code when signing up
+   - Add to notesForAgent: "Look up customer's FastDraft code in the Google Sheet linked in Known Issues document: [include the Google Sheet URL from Known Issues]. Note: Non-members get free bundle code, current members get apparel discount code."
+4. DO NOT hallucinate about activating subscriptions - agents lookup and provide codes
+5. Reference the FastDraft promotion documentation for activation instructions
+6. For non-members: Customer activates themselves using the code when signing up
+7. For current members: Customer uses discount code in the apparel store
 
 PAYMENT PROOF PATTERN:
 When a customer shows payment proof (PayPal, Stripe, App Store, etc.) but it's NOT in MemberPress:
