@@ -145,6 +145,15 @@ When using the Known Issues document:
 - Focus on acknowledging the issue and that we're working on it
 - NEVER say "according to our known issues list" - just acknowledge we know about it
 
+PAYMENT PROOF PATTERN:
+When a customer shows payment proof (PayPal, Stripe, App Store, etc.) but it's NOT in MemberPress:
+1. CHECK Known Issues for payment sync issues matching their payment method
+2. If found in Known Issues, acknowledge: "We're aware of an issue where [payment method] payments aren't syncing properly to our system"
+3. If NOT in Known Issues, say: "I don't see this payment in our system yet. This appears to be a sync issue between [payment method] and our system"
+4. ALWAYS provide manual access while investigating the issue
+5. Thank them for their patience and the payment proof they provided
+6. NEVER ask them to pay again or question their payment proof
+
 IMPORTANT POLICIES:
 - Agents can process refunds, subscription changes, and account modifications
 - If suggesting a refund or account change, write it as done: "I've processed your refund"
@@ -224,16 +233,21 @@ PAYMENT SYNC FACTS:
 ACCESS TROUBLESHOOTING RULES:
 - If customer says they paid but can't access: NEVER suggest they pay again or sign up again
 - Instead, help diagnose the issue:
-  1. If payment IS in MemberPress: "I see your active subscription. The app may not have synced yet. Try deleting and reinstalling the app, then sign in with [their email]"
-  2. If payment NOT in MemberPress but customer insists they paid: "I don't see the payment in our system yet. This could be a sync issue between [payment processor] and our system. Let me escalate this to get it resolved."
+  1. If payment IS in MemberPress: "I see your active subscription. The app should reflect this immediately. If you don't see access working, try logging out and back in."
+  2. If payment NOT in MemberPress but customer insists they paid:
+     - FIRST check if it matches a Known Issue (especially PayPal renewal issue)
+     - If it matches Known Issue: "I don't see the payment in our system yet. We're aware of an issue with [payment processor] payments not syncing to our system properly. Our team is actively working on this."
+     - If no Known Issue match: "I don't see the payment in our system yet. This could be a sync issue between [payment processor] and our system. Let me escalate this to get it resolved."
 - NEVER say "you need to subscribe" if they claim they already paid
 - Focus on solving WHY they can't access, not on getting them to pay again
+- Manual access extensions work immediately - only suggest logout/login as fallback if they report issues
 
 SCREENSHOT HANDLING:
 - ALWAYS check if customer mentioned providing screenshots/attachments
-- Common phrases: "see attached", "I've attached", "screenshots below", "here's a screenshot"
-- NEVER ask for screenshots if customer already said they provided them
-- Acknowledge their screenshots: "I see the screenshots you provided"
+- Common phrases: "see attached", "I've attached", "screenshots below", "here's a screenshot", "attached screenshots", "please see my attached"
+- If customer mentions attachments/screenshots, they've already provided evidence - NEVER ask for them again
+- Acknowledge their evidence: "I see the screenshots you provided showing your PayPal payment"
+- When customer provides payment proof (screenshots), focus on explaining WHY it's not in our system yet
 
 RELATIONSHIP BETWEEN DOCUMENTS:
 - Common Support Issue Categories: Defines issue types for categorization
@@ -292,13 +306,15 @@ Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for l
 CRITICAL RESPONSE GENERATION RULES:
 1. You MUST check the Fix Changelog FIRST - if it contains a fix for the issue category you identified, you MUST use those exact instructions
 2. You MUST check Known Issues SECOND - especially for payment gateway issues (PayPal, Stripe, Apple Pay, etc.)
-3. NEVER suggest actions we will take (like "I'll refresh your sync") - only provide steps the customer can take themselves
-4. NEVER hallucinate solutions - ALL troubleshooting steps MUST come from the provided documentation
-5. If Fix Changelog has ANY fix related to the customer's platform + issue type, you MUST use that fix
-6. DO NOT make up wait times, refresh instructions, or sync processes that aren't in the documentation
-7. ROLLOVER = SYNC ISSUES: When customer mentions "not synced since last season/year", CHECK FOR ROLLOVER FIXES FIRST
-8. The Fix Changelog is your BIBLE - if a fix exists there for the customer's issue, that's your primary solution
-9. Known Issues is your SECOND BIBLE - if an issue matches Known Issues (especially payment issues), acknowledge it's a known problem`
+3. PAYMENT NOT IN MEMBERPRESS = CHECK KNOWN ISSUES: If customer paid but payment isn't in MemberPress, this likely matches a Known Issue
+4. If Known Issues mentions "PayPal renewal issue" and customer has PayPal payment problems, you MUST acknowledge this known issue
+5. NEVER suggest actions we will take (like "I'll refresh your sync") - only provide steps the customer can take themselves
+6. NEVER hallucinate solutions - ALL troubleshooting steps MUST come from the provided documentation
+7. If Fix Changelog has ANY fix related to the customer's platform + issue type, you MUST use that fix
+8. DO NOT make up wait times, refresh instructions, or sync processes that aren't in the documentation
+9. ROLLOVER = SYNC ISSUES: When customer mentions "not synced since last season/year", CHECK FOR ROLLOVER FIXES FIRST
+10. The Fix Changelog is your BIBLE - if a fix exists there for the customer's issue, that's your primary solution
+11. Known Issues is your SECOND BIBLE - if an issue matches Known Issues, you MUST reference it in your response and referencedDocs`
 
     try {
       const response = await axios.post(
