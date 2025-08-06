@@ -228,15 +228,20 @@ IMPORTANT: The conversation history above includes both customer messages and ag
 
 RESOLUTION DETECTION:
 Check if the issue appears resolved:
-1. If agent provided a solution AND customer responds with ONLY:
+1. Agent must have provided ACTUAL SOLUTION STEPS (not "we're working on it" or "our team is investigating")
+2. Look for agent responses with:
+   - Specific instructions ("remove and re-add", "sign out and back in", "try this")
+   - Completed actions ("I've processed your refund", "I've extended your access")
+   - NOT: "We're aware of this issue", "Team is working on a fix", "We'll investigate"
+3. THEN customer responds with ONLY:
    - "Thanks" / "Thank you" / "Thanks!"
    - "That worked" / "Perfect" / "Great"
    - "All set" / "Got it" / "Fixed"
    - Similar brief acknowledgments (< 10 words)
-2. AND no new issues are mentioned
-3. THEN: Set suggestedResponse to "✓ Issue appears to be resolved"
-4. Add to notesForAgent: "Customer confirmed resolution. If issue persists, please delete this note to regenerate analysis."
-5. DO NOT suggest further troubleshooting if customer confirmed it's working
+4. AND no new issues are mentioned
+5. ONLY THEN: Set suggestedResponse to "✓ Issue appears to be resolved"
+6. Add to notesForAgent: "Customer confirmed resolution. If issue persists, please delete this note to regenerate analysis."
+7. DO NOT mark as resolved if agent only acknowledged the issue without providing a solution
 
 CUSTOMER'S LATEST MESSAGE:
 ${customerMessage}
