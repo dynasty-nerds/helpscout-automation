@@ -60,9 +60,11 @@ class MemberPressService {
       database: process.env.MEMBERPRESS_DB_NAME || 'dynastyn_Dynastynerds',
       user: process.env.MEMBERPRESS_DB_USER || 'nick_readonly',
       password: process.env.MEMBERPRESS_DB_PASSWORD || 'kyxWpSxAjqeGcwuHv7r1',
-      connectionLimit: 10,
+      connectionLimit: 5, // Reduced from 10 to prevent connection exhaustion
       waitForConnections: true,
-      queueLimit: 0
+      queueLimit: 10, // Added queue limit to prevent infinite waiting
+      acquireTimeout: 10000, // 10 second timeout for acquiring connection
+      connectTimeout: 10000 // 10 second connection timeout
     });
   }
 
@@ -73,8 +75,13 @@ class MemberPressService {
         [email.toLowerCase()]
       );
       return rows[0]?.ID || null;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting user ID by email:', error);
+      // Handle connection pool errors gracefully
+      if (error.code === 'ER_CON_COUNT_ERROR' || error.code === 'ECONNREFUSED') {
+        console.error('Database connection pool exhausted or unavailable');
+        return null; // Return null instead of throwing to allow graceful degradation
+      }
       throw error;
     }
   }
@@ -202,12 +209,23 @@ class MemberPressService {
           gateway: t.gateway
         }))
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching MemberPress data:', error);
+      
+      // Provide more specific error messages for different error types
+      let errorMessage = 'Unable to fetch subscription data';
+      if (error.code === 'ER_CON_COUNT_ERROR') {
+        errorMessage = 'Database connection limit reached. Please try again in a moment.';
+      } else if (error.code === 'ECONNREFUSED') {
+        errorMessage = 'Database connection unavailable. Please try again later.';
+      } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+        errorMessage = 'Database query timed out. Please try again.';
+      }
+      
       return { 
         userFound: false,
         lookupEmail: email,
-        error: 'Unable to fetch subscription data' 
+        error: errorMessage 
       };
     }
   }
