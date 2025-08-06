@@ -119,6 +119,7 @@ interface AIResponse {
   sentimentReasoning?: string
   suggestedResponse?: string
   notesForAgent?: string
+  memberPressInfo?: string
   confidence?: number
   referencedDocs?: string[]
   referencedUrls?: string[]
@@ -443,6 +444,7 @@ ${JSON.stringify(memberPressContext, null, 2)}\n`
         sentimentReasoning: claudeResponse.sentimentReasoning,
         suggestedResponse: claudeResponse.suggestedResponse,
         notesForAgent: claudeResponse.notesForAgent,
+        memberPressInfo: claudeResponse.memberPressInfo,
         confidence: claudeResponse.confidence,
         referencedDocs: claudeResponse.referencedDocs,
         referencedUrls: claudeResponse.referencedUrls,
@@ -608,6 +610,15 @@ ${JSON.stringify(memberPressContext, null, 2)}\n`
       }
     } else {
       parts.push(`- No documentation referenced`)
+    }
+    
+    // Add MemberPress Information section if available
+    if (aiResponse.memberPressInfo) {
+      parts.push(`\n💳 MemberPress Information:`)
+      const memberPressLines = aiResponse.memberPressInfo.split('\n').filter(line => line.trim())
+      memberPressLines.forEach(line => {
+        parts.push(line)
+      })
     }
     
     if (aiResponse.notesForAgent) {
