@@ -166,7 +166,7 @@ When a customer requests a NEW feature, integration, or wants functionality that
 1. CHECK documentation first - if HelpScout docs mention roadmap plans, you CAN reference those
 2. If NOT in documentation, DO NOT hallucinate or claim it's "on our roadmap" or "planned"
 3. NEVER claim "multiple customers have requested" or make assumptions about other users
-4. Add to notesForAgent for feature requests: "Feature request detected: [specific feature]. Consider adding to discovery log: https://www.notion.so/dynastynerds/1f6ddff14e648014a405cadf1273920d?v=21dddff14e6480269702000c03a11a02"
+4. Add to notesForAgent for feature requests: "Feature request detected: [specific feature]. Consider adding to discovery log: https://www.notion.so/dynastynerds/1f6ddff14e648014a405cadf1273920d"
 5. Feature requests include:
    - New platform integrations (RT Sports, Yahoo, CBS, etc.)
    - Manual league entry/manual leagues
