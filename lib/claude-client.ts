@@ -221,6 +221,14 @@ PAYMENT SYNC FACTS:
 - If a payment isn't showing, it either failed or was made with a different email
 - Signing out and back in does NOT help with payment issues
 
+ACCESS TROUBLESHOOTING RULES:
+- If customer says they paid but can't access: NEVER suggest they pay again or sign up again
+- Instead, help diagnose the issue:
+  1. If payment IS in MemberPress: "I see your active subscription. The app may not have synced yet. Try deleting and reinstalling the app, then sign in with [their email]"
+  2. If payment NOT in MemberPress but customer insists they paid: "I don't see the payment in our system yet. This could be a sync issue between [payment processor] and our system. Let me escalate this to get it resolved."
+- NEVER say "you need to subscribe" if they claim they already paid
+- Focus on solving WHY they can't access, not on getting them to pay again
+
 SCREENSHOT HANDLING:
 - ALWAYS check if customer mentioned providing screenshots/attachments
 - Common phrases: "see attached", "I've attached", "screenshots below", "here's a screenshot"
