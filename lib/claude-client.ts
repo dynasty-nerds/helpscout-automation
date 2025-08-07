@@ -621,6 +621,7 @@ CRITICAL RESPONSE GENERATION RULES:
         isSpam: result.isSpam,
         sentimentReasoning: result.sentimentReasoning,
         issueCategory: result.issueCategory,
+        topicTag: result.topicTag,
         memberPressInfo: result.memberPressInfo,
         cost,
         inputTokens,

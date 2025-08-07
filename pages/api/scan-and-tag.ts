@@ -24,26 +24,25 @@ function parseValidTagsFromDocument(docText: string): Set<string> {
   validTags.add('angry-customer')
   validTags.add('high-urgency')
   validTags.add('ai-drafts') // HelpScout native AI tag
+  validTags.add('call-sheet') // Special internal tag
   
-  // Parse standalone tags (marked with **)
-  const standaloneMatches = Array.from(docText.matchAll(/\*\*([a-z-]+)\*\* - /g))
-  for (const match of standaloneMatches) {
+  // Parse all tags that start with # symbol
+  // This will catch both standalone tags and parent/child tags
+  const tagMatches = Array.from(docText.matchAll(/^#([a-z-]+(?:\/[a-z-]+)?)/gm))
+  for (const match of tagMatches) {
     validTags.add(match[1])
   }
   
-  // Parse parent/child tags (format: parent/child)
-  const childTagMatches = Array.from(docText.matchAll(/\*\*([a-z-]+\/[a-z-]+)\*\* - /g))
-  for (const match of childTagMatches) {
-    validTags.add(match[1])
-  }
-  
-  // Also add parent tags alone (they can be used when child is unclear)
-  const parentSections = Array.from(docText.matchAll(/#### ([a-z-]+)\n/g))
-  for (const match of parentSections) {
-    if (!['sentiment', 'system'].includes(match[1])) { // Skip these sections
+  // Also look for tags in bold markdown format (fallback for old format)
+  const boldTagMatches = Array.from(docText.matchAll(/\*\*([a-z-]+(?:\/[a-z-]+)?)\*\*/g))
+  for (const match of boldTagMatches) {
+    // Only add if it looks like a valid tag (contains only lowercase letters, hyphens, and optionally one slash)
+    if (/^[a-z-]+(?:\/[a-z-]+)?$/.test(match[1])) {
       validTags.add(match[1])
     }
   }
+  
+  console.log(`Parsed tags from document: ${Array.from(validTags).join(', ')}`)
   
   return validTags
 }
@@ -63,7 +62,8 @@ async function checkForMissingTags(
         !hsTag.startsWith('vip') && // Ignore VIP tags
         !hsTag.includes('@') && // Ignore email tags
         !hsTag.match(/^\d/) && // Ignore date-specific tags
-        hsTag !== 'call-sheet') { // Special internal tag
+        hsTag !== 'call-sheet' && // Special internal tag
+        hsTag !== 'samples') { // Ignore samples tag
       missingFromDoc.push(hsTag)
     }
   })
