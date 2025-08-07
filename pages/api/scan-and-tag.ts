@@ -28,9 +28,14 @@ function parseValidTagsFromDocument(docText: string): Set<string> {
   
   // Parse all tags that start with # symbol
   // This will catch both standalone tags and parent/child tags
-  const tagMatches = Array.from(docText.matchAll(/^#([a-z-]+(?:\/[a-z-]+)?)/gm))
+  // Handles tags with or without bullet points/list markers
+  const tagMatches = Array.from(docText.matchAll(/#([a-z-]+(?:\/[a-z-]+)?)/gm))
   for (const match of tagMatches) {
-    validTags.add(match[1])
+    // Only add valid tag names (no special characters at the end)
+    const cleanTag = match[1].replace(/[^a-z\/-]+$/, '')
+    if (cleanTag) {
+      validTags.add(cleanTag)
+    }
   }
   
   // Also look for tags in bold markdown format (fallback for old format)
