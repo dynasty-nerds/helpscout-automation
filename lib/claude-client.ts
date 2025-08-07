@@ -387,15 +387,18 @@ Scoring Guidelines:
 - 81-100: Extreme anger, profanity, threats
 
 TOPIC TAGGING INSTRUCTIONS:
-Analyze the customer message and assign ONE topic tag from the Topic Tagging System document. Follow these rules:
-1. Use the MOST SPECIFIC tag possible (prefer child tags over parent tags)
-2. Only use parent tags when you cannot determine the specific subcategory
-3. If the message is spam, only use topicTag: "spam" (no other topic tag needed)
+Analyze the customer message and assign EXACTLY ONE topic tag from the Topic Tagging System document. Follow these rules:
+1. You MUST assign exactly ONE topic tag per ticket (not zero, not multiple - exactly one)
+2. Use the MOST SPECIFIC tag possible (prefer child tags over parent tags)
+3. Only use parent tags when you cannot determine the specific subcategory
 4. If unclear which tag to use, default to "general-misc"
 5. Tag format: Use exact tag names from the document (e.g., "account-login/payment-sync", "league-sync/espn", "rookie-guide")
 6. NEVER use both a parent and its child tag - choose the most specific one
-7. Standalone tags (green in doc) like "sleeper-mini", "rookie-guide", "roster-rescue" don't have children
-8. Parent tags (blue in doc) should only be used when child category is unclear
+7. Standalone tags like "sleeper-mini", "rookie-guide", "roster-rescue" don't have children
+8. Parent tags should only be used when child category is unclear
+9. IGNORE sentiment tags (angry-customer, high-urgency, spam) - these are handled separately
+10. IGNORE system tags (ai-drafts, call-sheet) - these are not topic tags
+11. Only assign tags from the topic tag sections of the document, not from sentiment or system sections
 
 Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for line breaks within JSON string values, not actual newlines:
 {

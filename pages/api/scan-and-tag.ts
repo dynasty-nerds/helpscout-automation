@@ -15,16 +15,12 @@ import packageJson from '../../package.json'
 // Removed loadCommonIssues function - common issues should come from HelpScout docs directly
 // Not from hard-coded markdown files that can become stale
 
-// Parse valid tags from the tagging system document
+// Parse valid TOPIC tags from the tagging system document
+// This excludes sentiment tags (handled by AI analysis) and system tags (ignored)
 function parseValidTagsFromDocument(docText: string): Set<string> {
-  const validTags = new Set<string>()
-  
-  // Add sentiment/special tags that are handled separately
-  validTags.add('spam')
-  validTags.add('angry-customer')
-  validTags.add('high-urgency')
-  validTags.add('ai-drafts') // HelpScout native AI tag
-  validTags.add('call-sheet') // Special internal tag
+  const validTopicTags = new Set<string>()
+  const sentimentTags = new Set(['spam', 'angry-customer', 'high-urgency'])
+  const systemTags = new Set(['ai-drafts', 'call-sheet'])
   
   // Parse all tags that start with # symbol
   // This will catch both standalone tags and parent/child tags
@@ -33,8 +29,22 @@ function parseValidTagsFromDocument(docText: string): Set<string> {
   for (const match of tagMatches) {
     // Only add valid tag names (no special characters at the end)
     const cleanTag = match[1].replace(/[^a-z\/-]+$/, '')
+    
+    // Skip sentiment tags (handled separately by AI analysis)
+    if (sentimentTags.has(cleanTag)) {
+      console.log(`Skipping sentiment tag: ${cleanTag} (handled by AI analysis)`)
+      continue
+    }
+    
+    // Skip system tags (ignored completely)
+    if (systemTags.has(cleanTag)) {
+      console.log(`Skipping system tag: ${cleanTag} (ignored)`)
+      continue
+    }
+    
+    // Add as valid topic tag
     if (cleanTag) {
-      validTags.add(cleanTag)
+      validTopicTags.add(cleanTag)
     }
   }
   
@@ -43,40 +53,55 @@ function parseValidTagsFromDocument(docText: string): Set<string> {
   for (const match of boldTagMatches) {
     // Only add if it looks like a valid tag (contains only lowercase letters, hyphens, and optionally one slash)
     if (/^[a-z-]+(?:\/[a-z-]+)?$/.test(match[1])) {
-      validTags.add(match[1])
+      // Skip sentiment and system tags here too
+      if (!sentimentTags.has(match[1]) && !systemTags.has(match[1])) {
+        validTopicTags.add(match[1])
+      }
     }
   }
   
-  console.log(`Parsed tags from document: ${Array.from(validTags).join(', ')}`)
+  console.log(`Parsed TOPIC tags from document: ${Array.from(validTopicTags).join(', ')}`)
+  console.log(`Topic tags count: ${validTopicTags.size}`)
   
-  return validTags
+  return validTopicTags
 }
 
-// Check if tags exist in HelpScout and report missing ones
+// Check if TOPIC tags exist in HelpScout and report missing ones
+// This only checks topic tags, not sentiment or system tags
 async function checkForMissingTags(
   client: HelpScoutClient,
-  validTagsFromDoc: Set<string>,
+  validTopicTagsFromDoc: Set<string>,
   existingHelpScoutTags: Set<string>
 ): Promise<string | null> {
   const missingFromDoc: string[] = []
   const missingFromHelpScout: string[] = []
   
+  // Tags to always ignore in checks
+  const sentimentTags = new Set(['spam', 'angry-customer', 'high-urgency'])
+  const systemTags = new Set(['ai-drafts', 'call-sheet'])
+  const ignoreTags = new Set(['samples', 'vip'])
+  
   // Check which HelpScout tags are not in our documentation
   existingHelpScoutTags.forEach(hsTag => {
-    if (!validTagsFromDoc.has(hsTag) && 
-        !hsTag.startsWith('vip') && // Ignore VIP tags
-        !hsTag.includes('@') && // Ignore email tags
-        !hsTag.match(/^\d/) && // Ignore date-specific tags
-        hsTag !== 'call-sheet' && // Special internal tag
-        hsTag !== 'samples') { // Ignore samples tag
+    // Skip sentiment tags, system tags, and other ignored tags
+    if (sentimentTags.has(hsTag) || 
+        systemTags.has(hsTag) ||
+        ignoreTags.has(hsTag) ||
+        hsTag.startsWith('vip') || 
+        hsTag.includes('@') || 
+        hsTag.match(/^\d/)) {
+      return // Skip this tag
+    }
+    
+    // Check if this topic tag is missing from documentation
+    if (!validTopicTagsFromDoc.has(hsTag)) {
       missingFromDoc.push(hsTag)
     }
   })
   
-  // Check which documented tags don't exist in HelpScout
-  validTagsFromDoc.forEach(docTag => {
-    if (!existingHelpScoutTags.has(docTag) && 
-        !['ai-drafts'].includes(docTag)) { // Skip system tags
+  // Check which documented topic tags don't exist in HelpScout
+  validTopicTagsFromDoc.forEach(docTag => {
+    if (!existingHelpScoutTags.has(docTag)) {
       missingFromHelpScout.push(docTag)
     }
   })
@@ -940,10 +965,14 @@ export default async function handler(
             tagsToAdd.push('high-urgency')
           }
           
-          // Topic tag - only add if provided and not already present
+          // Topic tag - only add ONE if provided and not already present
           if (analysisResult.aiResponse.topicTag && !existingTagNames.includes(analysisResult.aiResponse.topicTag)) {
             tagsToAdd.push(analysisResult.aiResponse.topicTag)
-            console.log(`Will add topic tag: ${analysisResult.aiResponse.topicTag}`)
+            console.log(`Will add TOPIC tag: ${analysisResult.aiResponse.topicTag} (1 topic tag per ticket)`)
+          } else if (!analysisResult.aiResponse.topicTag) {
+            console.log(`WARNING: No topic tag assigned by AI (should always have one)`)
+          } else {
+            console.log(`Topic tag ${analysisResult.aiResponse.topicTag} already exists on ticket`)
           }
         }
         
