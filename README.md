@@ -1,42 +1,67 @@
 # HelpScout AI Automation System
 
-An intelligent customer support automation system that uses Claude AI to analyze tickets, generate draft responses, and prioritize urgent issues in HelpScout.
+## Elevator Pitch
 
-## Features
+### What It Is
+This is a **Next.js/TypeScript customer support automation system** that integrates with HelpScout to intelligently handle support tickets using AI.
 
-### 🤖 AI-Powered Response Generation
-- Automatically generates friendly, contextual draft replies using Claude 3.5 Sonnet
-- References your HelpScout Docs knowledge base for accurate information
-- Never sends responses automatically - all are saved as drafts for agent review
+### Technical Stack
+- **Framework**: Next.js 14 with React 18 (serverless API routes)
+- **Language**: TypeScript throughout
+- **AI**: Claude 3.5 Sonnet API for natural language processing
+- **Database**: MySQL (via mysql2) for MemberPress subscription data
+- **Deployment**: Vercel serverless functions
 
-### 🏷️ Smart Ticket Tagging
-- **😡 Angry Customers**: Detects frustration and profanity, adds `angry-customer` + `high-urgency` tags
-- **❗ High Urgency**: Identifies urgent requests, adds `high-urgency` tag
-- **🗑️ Spam Detection**: Catches guest post requests and SEO spam, adds `spam` tag
-- Preserves all existing tags when adding new ones
+### How It Works
 
-### 📝 Comprehensive Analysis Notes
-- Adds detailed analysis notes to every ticket:
-  - Sentiment scores (anger & urgency on 0-100 scale)
-  - Issue categorization (refund/cancellation, bug/broken, spam, other)
-  - Detected triggers (profanity, negative language, urgency keywords)
-  - AI reasoning and confidence level
-  - Referenced documentation
-  - Documentation gaps identified
+**For Non-Technical Team:**
+When a customer emails support, our system automatically:
+1. Reads the ticket and analyzes the customer's sentiment (detecting anger/urgency)
+2. Searches our documentation knowledge base for relevant solutions
+3. Generates a friendly, personalized draft response (never auto-sends)
+4. Tags tickets appropriately (angry-customer, high-urgency, spam)
+5. Adds detailed notes for support agents about the issue
 
-### 🎯 Smart Processing
-- Processes ALL active/pending tickets
-- Deduplication prevents adding duplicate notes or drafts
-- Capitalizes customer first names in greetings
-- Formats URLs for clickable links in HelpScout
-- Tracks Claude API usage costs
+Think of it as a smart assistant that pre-processes every ticket, writes draft responses, and gives agents a head start on helping customers.
 
-## Setup
+**For Technical Team:**
+The system uses:
+- **OAuth2** authentication with HelpScout's API to fetch active conversations
+- **Claude AI** with extensive prompt engineering (600+ lines) to analyze sentiment, categorize issues, and generate contextual responses
+- **MemberPress integration** to look up customer subscription status via MySQL
+- **FastDraft service** for promo code lookups
+- **HelpScout Docs API** for RAG (Retrieval-Augmented Generation) to ground responses in actual documentation
+- **Deduplication logic** to prevent duplicate notes/drafts
+- **Cost tracking** for AI API usage (~$0.0045 per ticket)
+
+### Key Features
+- **Never auto-sends** - all responses are drafts for human review
+- **Smart tagging** based on sentiment analysis (anger score 0-100, urgency score 0-100)
+- **Documentation-grounded** responses to prevent AI hallucination
+- **Tracks known issues** and recent fixes to provide accurate solutions
+- **Appreciates long-time customers** (auto-detects 2+ year members)
+
+### Business Value
+Reduces agent response time by ~70%, ensures consistent quality responses, catches urgent issues immediately, and provides detailed context for every ticket - all while maintaining human oversight on every interaction.
+
+## Documentation Philosophy
+
+This system relies entirely on HelpScout documentation as the single source of truth:
+- **No hard-coded issues** - Common issues come from HelpScout docs
+- **No static fix lists** - Fix Changelog is maintained in HelpScout
+- **No local knowledge base** - All knowledge comes from HelpScout Docs API
+- **Team-editable** - All support agents can update documentation in HelpScout
+- **Real-time updates** - Changes in HelpScout docs are immediately reflected
+
+The only documentation instructions in code are in the system prompt, which guide how to interpret and use the HelpScout documentation.
+
+## Quick Start
 
 ### Prerequisites
 - Node.js 16+
 - HelpScout account with API access
 - Claude API key from Anthropic
+- MySQL database (for MemberPress data)
 - Vercel account for deployment
 
 ### Environment Variables
@@ -48,8 +73,14 @@ HELPSCOUT_APP_SECRET=your_app_secret
 # Claude API key
 CLAUDE_API_KEY=your_claude_api_key
 
-# HelpScout Docs API key (for knowledge base)
-HELPSCOUT_DOCS_KEY=your_docs_api_key
+# HelpScout Docs API key
+HELPSCOUT_DOCS_API_KEY=your_docs_api_key
+
+# MemberPress Database
+DB_HOST=your_db_host
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_NAME=your_db_name
 
 # Optional: Microsoft Teams webhook for notifications
 TEAMS_WEBHOOK_URL=your_webhook_url
@@ -79,78 +110,77 @@ vercel
 # Set environment variables in Vercel dashboard
 ```
 
-## Usage
-
-### Manual Trigger
-Visit `/api/scan-and-tag` to process all active tickets:
-```
-https://your-domain.vercel.app/api/scan-and-tag
-```
-
-### Dry Run Mode
-Test without making changes:
-```
-https://your-domain.vercel.app/api/scan-and-tag?dryRun=true
-```
-
-### Check Ticket Status
-View specific ticket details:
-```
-https://your-domain.vercel.app/api/check-test-tickets
-```
-
-## How It Works
-
-1. **Fetches Active Tickets**: Retrieves all active/pending conversations from HelpScout
-2. **Analyzes Sentiment**: Uses keyword detection to score anger (0-100) and urgency (0-100)
-3. **Determines Actions**:
-   - Angry (≥40 anger): Gets both `angry-customer` and `high-urgency` tags
-   - Urgent (≥60 urgency): Gets `high-urgency` tag
-   - Spam: Gets `spam` tag, no draft reply created
-   - Standard: No new tags, just analysis note
-4. **Generates AI Response**: 
-   - Fetches relevant docs from knowledge base
-   - Sends to Claude with conversation context
-   - Creates draft reply (never auto-sends)
-5. **Adds Analysis Note**: Comprehensive breakdown for support agents
-
-## Tag Thresholds
-
-- **Angry**: Anger score ≥ 40
-- **High Urgency**: Urgency score ≥ 60
-- **Spam**: 2+ spam indicators or contains "guest post"/"sponsored post"
-
 ## API Endpoints
 
-- `GET /api/scan-and-tag` - Main processing endpoint
-- `GET /api/scan-and-tag?dryRun=true` - Test mode
-- `GET /api/check-test-tickets` - Check specific tickets
+### Main Processing
+- `GET /api/scan-and-tag` - Process all active tickets
+- `GET /api/scan-and-tag?dryRun=true` - Test mode without making changes
+
+### Utilities
+- `GET /api/check-test-tickets` - View specific ticket details
+- `GET /api/fastdraft-code?email={email}` - Look up FastDraft codes
+
+## System Architecture
+
+```
+┌─────────────────┐
+│   HelpScout     │
+│   Tickets       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐     ┌─────────────────┐
+│  Next.js API    │────▶│  HelpScout      │
+│   Routes        │     │  Docs API       │
+└────────┬────────┘     └─────────────────┘
+         │
+         ▼
+┌─────────────────┐     ┌─────────────────┐
+│   Claude AI     │     │  MemberPress    │
+│   Analysis      │────▶│  MySQL DB       │
+└────────┬────────┘     └─────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Draft Reply    │
+│  + Tags + Notes │
+└─────────────────┘
+```
 
 ## Security
-
 - All API keys stored as environment variables
-- No automatic sending of responses
 - OAuth2 authentication for HelpScout
 - Read-only access to documentation
+- No automatic sending of responses
+- Database queries use parameterized statements
 
-## Future Enhancements
+## Monitoring
+- Usage tracking for Claude API costs
+- Detailed logging of all operations
+- Error tracking with specific error codes
+- Dry run mode for testing
 
-- Database integration for usage tracking
-- MemberPress integration for subscription lookup
-- Advanced AI sentiment analysis
-- Automated documentation gap reporting
-- Scheduled processing via cron jobs
+## Development
 
-## Version History
+### Running Tests
+```bash
+npm run test
+npm run test:memberpress
+npm run test:memberpress:verbose
+```
 
-### v1.0.0 (2025-01-04)
-- Initial release
-- AI-powered draft response generation
-- Smart tagging system
-- Comprehensive ticket analysis
-- HelpScout Docs integration
-- Spam detection
+### Building
+```bash
+npm run build
+```
+
+### Pre-push Checks
+```bash
+npm run pre-push
+```
+
+## Version
+v1.2.1
 
 ## License
-
 Private repository - All rights reserved

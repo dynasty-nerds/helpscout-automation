@@ -1,107 +1,19 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { HelpScoutClient } from '../../lib/helpscout-client'
-import { TeamsClient } from '../../lib/teams-client'
+// TeamsClient import removed - not currently being used
 import { ClaudeClient } from '../../lib/claude-client'
 import { HelpScoutDocsClient } from '../../lib/helpscout-docs'
 import { memberPressService } from '../../src/services/memberPressService'
 import { fastDraftService } from '../../src/services/fastDraftService'
-import fs from 'fs/promises'
-import path from 'path'
+// Removed fs and path imports - no longer reading static markdown files
 import packageJson from '../../package.json'
 
-async function loadLearningFiles(): Promise<{ learnings: string; gaps: string }> {
-  try {
-    const learningsPath = path.join(process.cwd(), 'claude-learnings.md')
-    const gapsPath = path.join(process.cwd(), 'documentation-gaps.md')
-    
-    let learnings = ''
-    let gaps = ''
-    
-    try {
-      learnings = await fs.readFile(learningsPath, 'utf-8')
-    } catch (error) {
-      learnings = '# Claude Learning File\n\nThis file tracks learnings from agent responses to improve future AI suggestions.\n\n## Learnings\n\n'
-      await fs.writeFile(learningsPath, learnings, 'utf-8')
-    }
-    
-    try {
-      gaps = await fs.readFile(gapsPath, 'utf-8')
-    } catch (error) {
-      gaps = '# Documentation Gaps\n\nThis file tracks missing documentation identified during support conversations.\n\n## Gaps\n\n'
-      await fs.writeFile(gapsPath, gaps, 'utf-8')
-    }
-    
-    return { learnings, gaps }
-  } catch (error) {
-    console.error('Error loading learning files:', error)
-    return { learnings: '', gaps: '' }
-  }
-}
+// Removed loadLearningFiles function - no longer using static markdown files for learnings/gaps
+// Documentation gaps are now tracked per-ticket since documentation evolves over time
+// Claude learnings are managed via system prompt updates
 
-interface IssuePattern {
-  category: string
-  patterns: Array<{
-    keywords: string[]
-    requireAll?: boolean
-  }>
-}
-
-async function loadCommonIssues(): Promise<IssuePattern[]> {
-  try {
-    const issuesPath = path.join(process.cwd(), 'common-issues.md')
-    const content = await fs.readFile(issuesPath, 'utf-8')
-    
-    // Parse the markdown file to extract patterns
-    const patterns: IssuePattern[] = []
-    const lines = content.split('\n')
-    let currentCategory = ''
-    let inCategory = false
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim()
-      
-      // Category header (### Title)
-      if (line.startsWith('### ')) {
-        currentCategory = line.substring(4)
-        inCategory = true
-      }
-      // Keywords line
-      else if (inCategory && line.startsWith('- Keywords:')) {
-        const keywordText = line.substring(11).trim()
-        
-        // Parse the keyword pattern
-        // For now, let's simplify - just extract all meaningful keywords
-        const cleanedText = keywordText
-          .toLowerCase()
-          .replace(/[()]/g, '') // Remove parentheses
-          .replace(/"/g, '') // Remove quotes
-        
-        // Split by AND or OR to get individual keywords
-        const allKeywords = cleanedText
-          .split(/\s+(and|or)\s+/i)
-          .filter(k => k && k !== 'and' && k !== 'or')
-          .map(k => k.trim())
-        
-        // Determine if it's an AND pattern (all required) or OR pattern
-        const requireAll = keywordText.includes(' AND ')
-        
-        patterns.push({
-          category: currentCategory,
-          patterns: [{
-            keywords: allKeywords,
-            requireAll: requireAll
-          }]
-        })
-      }
-    }
-    
-    return patterns
-  } catch (error) {
-    console.error('Error loading common issues:', error)
-    // Return default patterns if file not found
-    return []
-  }
-}
+// Removed loadCommonIssues function - common issues should come from HelpScout docs directly
+// Not from hard-coded markdown files that can become stale
 
 interface PreviousSentiment {
   angerScore: number
@@ -218,7 +130,6 @@ async function createAnalysisNote(
   
   // Get the actual message content
   let customerMessage = ''
-  let messageContent = ''
   if (conversation._embedded?.threads) {
     const customerThreads = conversation._embedded.threads.filter(
       (thread: any) => thread.type === 'customer'
@@ -226,12 +137,11 @@ async function createAnalysisNote(
     if (customerThreads.length > 0) {
       const latestThread = customerThreads[customerThreads.length - 1]
       customerMessage = (latestThread.body || '').replace(/<[^>]*>/g, ' ')
-      messageContent = customerMessage.toLowerCase()
     }
   }
   
   const subject = (conversation.subject || '').toLowerCase()
-  const combinedText = subject + ' ' + messageContent
+  // Removed combinedText - was not being used
   
   // We'll set the issue summary after we get the AI response
   let issueSummary = '🗃️ '
@@ -303,8 +213,7 @@ async function createAnalysisNote(
         console.error('Failed to fetch known issues document:', error)
       }
       
-      // Load learning files
-      const { learnings, gaps } = await loadLearningFiles()
+      // No longer loading static learning files - documentation gaps tracked per-ticket
       
       // Build conversation history
       let conversationHistory = `Subject: ${conversation.subject || 'No subject'}\n`
@@ -322,45 +231,21 @@ async function createAnalysisNote(
         })
       }
       
-      // Load common issues for AI context
-      let commonIssuesContent = ''
-      try {
-        const issuesPath = path.join(process.cwd(), 'common-issues.md')
-        commonIssuesContent = await fs.readFile(issuesPath, 'utf-8')
-      } catch (error) {
-        console.log('Common issues file not found, using defaults')
-      }
+      // Common issues now come from HelpScout docs directly, not static files
       
-      // Add learnings and gaps as context
-      const contextDocs = [
-        ...relevantDocs,
-        {
-          title: 'Agent Learning Insights',
-          content: learnings,
-          url: 'internal://learnings'
-        },
-        {
-          title: 'Known Documentation Gaps',
-          content: gaps,
-          url: 'internal://gaps'
-        },
-        {
-          title: 'Common Support Issue Categories',
-          content: commonIssuesContent,
-          url: 'internal://common-issues'
-        }
-      ]
+      // Use only HelpScout docs for context, not static files
+      const contextDocs = [...relevantDocs]
       
       // Add changelog document if available (at beginning)
       if (changelogDoc) {
         contextDocs.unshift({
           id: changelogDoc.id,
           name: changelogDoc.name || 'Recent Platform Changes & Fixes',
-          title: changelogDoc.name || 'Recent Platform Changes & Fixes',
           text: changelogDoc.text || '',
-          content: changelogDoc.text || '',
           publicUrl: 'https://secure.helpscout.net/docs/5f285c7e04286342d763acc4/article/68919485bb013911a3b209ac/',
-          url: 'https://secure.helpscout.net/docs/5f285c7e04286342d763acc4/article/68919485bb013911a3b209ac/'
+          collectionId: changelogDoc.collectionId || '',
+          status: changelogDoc.status || 'published',
+          updatedAt: changelogDoc.updatedAt || new Date().toISOString()
         })
       }
       
@@ -369,11 +254,11 @@ async function createAnalysisNote(
         contextDocs.unshift({
           id: knownIssuesDoc.id,
           name: knownIssuesDoc.name || 'Known Issues',
-          title: knownIssuesDoc.name || 'Known Issues',
           text: knownIssuesDoc.text || '',
-          content: knownIssuesDoc.text || '',
           publicUrl: 'https://secure.helpscout.net/docs/5f285c7e04286342d763acc4/article/68919c52816719208b5a1a93/',
-          url: 'https://secure.helpscout.net/docs/5f285c7e04286342d763acc4/article/68919c52816719208b5a1a93/'
+          collectionId: knownIssuesDoc.collectionId || '',
+          status: knownIssuesDoc.status || 'published',
+          updatedAt: knownIssuesDoc.updatedAt || new Date().toISOString()
         })
       }
       
@@ -577,7 +462,33 @@ Note: No code found in the FastDraft spreadsheet for this email address.\n`
     parts.push(`🔺 ESCALATION - Anger: ${angerIncrease >= 0 ? '+' : ''}${angerIncrease}, Urgency: ${urgencyIncrease >= 0 ? '+' : ''}${urgencyIncrease}`)
   }
   
-  // Add header based on AI sentiment
+  // Check for spam first - create minimal note and no draft
+  if (aiResponse.isSpam) {
+    // Create minimal spam note
+    let spamNote = '🗑️ SPAM DETECTED\n\n'
+    
+    // Add reasoning if available
+    if (aiResponse.sentimentReasoning) {
+      spamNote += `📝 Reasoning: ${aiResponse.sentimentReasoning}\n\n`
+    }
+    
+    // Add usage tracking
+    if (aiResponse.usageString) {
+      spamNote += `${aiResponse.usageString}\n\n`
+    }
+    
+    // Add project footer
+    spamNote += `✍️ Note written by HelpScout Automation Claude Code project v${packageJson.version}`
+    
+    return {
+      noteText: spamNote,
+      aiResponse,
+      suggestedResponse: undefined, // No draft reply for spam
+      error: false
+    }
+  }
+  
+  // Add header based on AI sentiment (non-spam)
   let header = ''
   if (aiResponse.isAngry) {
     // Determine anger level based on score
@@ -714,11 +625,8 @@ export default async function handler(
     const claudeClient = new ClaudeClient()
     const docsClient = new HelpScoutDocsClient()
     
-    // Initialize Teams client only if webhook URL is configured
-    let teamsClient: TeamsClient | null = null
-    if (process.env.TEAMS_WEBHOOK_URL) {
-      teamsClient = new TeamsClient()
-    }
+    // Teams client initialization removed - not currently being used
+    // Can be re-added when Teams notifications are implemented
     
     // Extract parameters
     const dryRun = req.query.dryRun === 'true' || req.body?.dryRun === true
@@ -899,12 +807,15 @@ export default async function handler(
           console.log(`Added note to ${conversation.id}`)
           results.notesAdded++
           
-          // Create draft reply if we have one (and no existing draft)
+          // Create draft reply if we have one (and no existing draft) - but NOT for spam
           const existingDrafts = allThreads.filter(
             (thread: any) => thread.type === 'reply' && thread.state === 'draft'
           )
           
-          if (analysisResult.suggestedResponse && existingDrafts.length === 0 && !analysisResult.error) {
+          // Skip draft creation for spam tickets
+          const isSpamTicket = analysisResult.aiResponse?.isSpam === true
+          
+          if (analysisResult.suggestedResponse && existingDrafts.length === 0 && !analysisResult.error && !isSpamTicket) {
             const customerId = conversation.primaryCustomer?.id
             if (customerId) {
               try {
@@ -919,6 +830,8 @@ export default async function handler(
                 console.error(`Failed to create draft reply for ${conversation.id}:`, error)
               }
             }
+          } else if (isSpamTicket && analysisResult.suggestedResponse) {
+            console.log(`Skipped draft creation for spam ticket ${conversation.id}`)
           }
         } else {
           // Dry run logging
