@@ -15,6 +15,90 @@ import packageJson from '../../package.json'
 // Removed loadCommonIssues function - common issues should come from HelpScout docs directly
 // Not from hard-coded markdown files that can become stale
 
+// Parse valid tags from the tagging system document
+function parseValidTagsFromDocument(docText: string): Set<string> {
+  const validTags = new Set<string>()
+  
+  // Add sentiment/special tags that are handled separately
+  validTags.add('spam')
+  validTags.add('angry-customer')
+  validTags.add('high-urgency')
+  validTags.add('ai-drafts') // HelpScout native AI tag
+  
+  // Parse standalone tags (marked with **)
+  const standaloneMatches = Array.from(docText.matchAll(/\*\*([a-z-]+)\*\* - /g))
+  for (const match of standaloneMatches) {
+    validTags.add(match[1])
+  }
+  
+  // Parse parent/child tags (format: parent/child)
+  const childTagMatches = Array.from(docText.matchAll(/\*\*([a-z-]+\/[a-z-]+)\*\* - /g))
+  for (const match of childTagMatches) {
+    validTags.add(match[1])
+  }
+  
+  // Also add parent tags alone (they can be used when child is unclear)
+  const parentSections = Array.from(docText.matchAll(/#### ([a-z-]+)\n/g))
+  for (const match of parentSections) {
+    if (!['sentiment', 'system'].includes(match[1])) { // Skip these sections
+      validTags.add(match[1])
+    }
+  }
+  
+  return validTags
+}
+
+// Check if tags exist in HelpScout and report missing ones
+async function checkForMissingTags(
+  client: HelpScoutClient,
+  validTagsFromDoc: Set<string>,
+  existingHelpScoutTags: Set<string>
+): Promise<string | null> {
+  const missingFromDoc: string[] = []
+  const missingFromHelpScout: string[] = []
+  
+  // Check which HelpScout tags are not in our documentation
+  existingHelpScoutTags.forEach(hsTag => {
+    if (!validTagsFromDoc.has(hsTag) && 
+        !hsTag.startsWith('vip') && // Ignore VIP tags
+        !hsTag.includes('@') && // Ignore email tags
+        !hsTag.match(/^\d/) && // Ignore date-specific tags
+        hsTag !== 'call-sheet') { // Special internal tag
+      missingFromDoc.push(hsTag)
+    }
+  })
+  
+  // Check which documented tags don't exist in HelpScout
+  validTagsFromDoc.forEach(docTag => {
+    if (!existingHelpScoutTags.has(docTag) && 
+        !['ai-drafts'].includes(docTag)) { // Skip system tags
+      missingFromHelpScout.push(docTag)
+    }
+  })
+  
+  if (missingFromDoc.length > 0 || missingFromHelpScout.length > 0) {
+    let report = '📋 Tag System Audit:\n\n'
+    
+    if (missingFromDoc.length > 0) {
+      report += `Tags in HelpScout but not in documentation (${missingFromDoc.length}):\n`
+      report += missingFromDoc.map(t => `  - ${t}`).join('\n')
+      report += '\n\n'
+    }
+    
+    if (missingFromHelpScout.length > 0) {
+      report += `Tags in documentation but not created in HelpScout (${missingFromHelpScout.length}):\n`
+      report += missingFromHelpScout.map(t => `  - ${t}`).join('\n')
+      report += '\n\n'
+    }
+    
+    report += 'Consider updating the Topic Tagging System document or creating missing tags in HelpScout.'
+    
+    return report
+  }
+  
+  return null
+}
+
 interface PreviousSentiment {
   angerScore: number
   urgencyScore: number
@@ -40,6 +124,7 @@ interface AIResponse {
   errorMessage?: string
   usageString?: string
   issueCategory?: string
+  topicTag?: string  // Topic tag from the tagging system
   cost?: number
   inputTokens?: number
   outputTokens?: number
@@ -124,9 +209,33 @@ async function createAnalysisNote(
   claudeClient: ClaudeClient | null,
   docsClient: HelpScoutDocsClient | null,
   previousSentiment: PreviousSentiment | null,
-  isInitial: boolean
+  isInitial: boolean,
+  taggingSystemDoc: any | null
 ): Promise<AnalysisResult> {
   const parts = []
+  
+  // Check for "call sheet" emails from hello@dynastynerds.com
+  const customerEmail = conversation.primaryCustomer?.email?.toLowerCase()
+  const subject = (conversation.subject || '').toLowerCase()
+  
+  if (customerEmail === 'hello@dynastynerds.com' && subject.includes('call sheet')) {
+    console.log(`Skipping analysis for call sheet email from ${customerEmail}`)
+    return {
+      noteText: '📋 Call Sheet - No analysis needed',
+      aiResponse: {
+        angerScore: 0,
+        urgencyScore: 0,
+        isAngry: false,
+        isHighUrgency: false,
+        isSpam: false,
+        topicTag: 'call-sheet',
+        issueCategory: 'Call Sheet',
+        error: false
+      },
+      suggestedResponse: undefined,
+      error: false
+    }
+  }
   
   // Get the actual message content
   let customerMessage = ''
@@ -139,8 +248,6 @@ async function createAnalysisNote(
       customerMessage = (latestThread.body || '').replace(/<[^>]*>/g, ' ')
     }
   }
-  
-  const subject = (conversation.subject || '').toLowerCase()
   // Removed combinedText - was not being used
   
   // We'll set the issue summary after we get the AI response
@@ -262,6 +369,19 @@ async function createAnalysisNote(
         })
       }
       
+      // Add tagging system document if available (at beginning)
+      if (taggingSystemDoc) {
+        contextDocs.unshift({
+          id: taggingSystemDoc.id,
+          name: taggingSystemDoc.name || 'Topic Tagging System',
+          text: taggingSystemDoc.text || '',
+          publicUrl: 'https://secure.helpscout.net/docs/6894d315cc94a96f86d43e59/article/6894d33473b0d70353930e9e/',
+          collectionId: taggingSystemDoc.collectionId || '',
+          status: taggingSystemDoc.status || 'published',
+          updatedAt: taggingSystemDoc.updatedAt || new Date().toISOString()
+        })
+      }
+      
       // Check if we need MemberPress data based on the message content
       let memberPressContext = null
       const customerEmail = conversation.primaryCustomer?.email
@@ -376,6 +496,7 @@ Note: No code found in the FastDraft spreadsheet for this email address.\n`
         referencedUrls: claudeResponse.referencedUrls,
         usageString: claudeResponse.usageString,
         issueCategory: claudeResponse.issueCategory,
+        topicTag: claudeResponse.topicTag,
         cost: claudeResponse.cost,
         inputTokens: claudeResponse.inputTokens,
         outputTokens: claudeResponse.outputTokens,
@@ -384,6 +505,7 @@ Note: No code found in the FastDraft spreadsheet for this email address.\n`
       
       console.log(`AI analysis complete - Anger: ${aiResponse.angerScore}/100, Urgency: ${aiResponse.urgencyScore}/100`)
       console.log(`AI issueCategory field: "${aiResponse.issueCategory}"`)
+      console.log(`AI topicTag field: "${aiResponse.topicTag}"`)
       console.log(`Fallback category prepared: "${fallbackCategory}"`)
       
       // Use AI-determined category if available
@@ -675,6 +797,40 @@ export default async function handler(
     
     console.log(`Found ${conversations.length} ${scanClosed ? 'closed' : 'active/pending'} conversations to process`)
     
+    // Fetch tagging system document once at the beginning
+    let taggingSystemDoc = null
+    let tagAuditReport = null
+    try {
+      const taggingSystemId = '6894d33473b0d70353930e9e'
+      taggingSystemDoc = await docsClient.getArticle(taggingSystemId)
+      if (taggingSystemDoc) {
+        console.log('Successfully fetched tagging system document')
+        
+        // Parse valid tags from document
+        const validTagsFromDoc = parseValidTagsFromDocument(taggingSystemDoc.text || '')
+        console.log(`Found ${validTagsFromDoc.size} valid tags in documentation`)
+        
+        // Get all existing tags from HelpScout
+        const allTagsResponse = await client.getTags()
+        const existingHelpScoutTags = new Set<string>()
+        if (allTagsResponse?._embedded?.tags) {
+          for (const tag of allTagsResponse._embedded.tags) {
+            existingHelpScoutTags.add(tag.name)
+          }
+        }
+        console.log(`Found ${existingHelpScoutTags.size} tags in HelpScout`)
+        
+        // Check for missing tags
+        tagAuditReport = await checkForMissingTags(client, validTagsFromDoc, existingHelpScoutTags)
+        if (tagAuditReport) {
+          console.log('Tag audit found discrepancies:')
+          console.log(tagAuditReport)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch or parse tagging system document:', error)
+    }
+    
     // Process conversations
     const results = {
       scannedCount: 0,
@@ -740,7 +896,8 @@ export default async function handler(
           claudeClient,
           docsClient,
           previousSentiment,
-          isInitial
+          isInitial,
+          taggingSystemDoc
         )
         
         // Track if Claude was actually called and accumulate costs
@@ -766,6 +923,7 @@ export default async function handler(
         // Determine what tags to add based on AI analysis
         const tagsToAdd: string[] = []
         if (analysisResult.aiResponse && !analysisResult.aiResponse.error) {
+          // Sentiment tags
           if (analysisResult.aiResponse.isSpam && !existingTagNames.includes('spam')) {
             tagsToAdd.push('spam')
           }
@@ -775,6 +933,12 @@ export default async function handler(
           if ((analysisResult.aiResponse.isAngry || analysisResult.aiResponse.isHighUrgency) && 
               !existingTagNames.includes('high-urgency')) {
             tagsToAdd.push('high-urgency')
+          }
+          
+          // Topic tag - only add if provided and not already present
+          if (analysisResult.aiResponse.topicTag && !existingTagNames.includes(analysisResult.aiResponse.topicTag)) {
+            tagsToAdd.push(analysisResult.aiResponse.topicTag)
+            console.log(`Will add topic tag: ${analysisResult.aiResponse.topicTag}`)
           }
         }
         
@@ -903,6 +1067,7 @@ export default async function handler(
       notesAdded: results.notesAdded,
       errors: results.errors,
       urgentTickets: results.urgentTickets,
+      tagAuditReport: tagAuditReport,
       claudeApiUsage: {
         apiCalls: results.claudeApiCalls,
         skippedDuplicate: results.skippedDuplicate,

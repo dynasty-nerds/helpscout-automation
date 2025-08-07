@@ -22,6 +22,8 @@ interface ClaudeResponse {
   errorMessage?: string
   // Issue categorization
   issueCategory?: string
+  // Topic tagging
+  topicTag?: string
   // MemberPress information
   memberPressInfo?: string
   // Usage tracking
@@ -384,9 +386,21 @@ Scoring Guidelines:
 - 61-80: Very angry/urgent, hostile tone
 - 81-100: Extreme anger, profanity, threats
 
+TOPIC TAGGING INSTRUCTIONS:
+Analyze the customer message and assign ONE topic tag from the Topic Tagging System document. Follow these rules:
+1. Use the MOST SPECIFIC tag possible (prefer child tags over parent tags)
+2. Only use parent tags when you cannot determine the specific subcategory
+3. If the message is spam, only use topicTag: "spam" (no other topic tag needed)
+4. If unclear which tag to use, default to "general-misc"
+5. Tag format: Use exact tag names from the document (e.g., "account-login/payment-sync", "league-sync/espn", "rookie-guide")
+6. NEVER use both a parent and its child tag - choose the most specific one
+7. Standalone tags (green in doc) like "sleeper-mini", "rookie-guide", "roster-rescue" don't have children
+8. Parent tags (blue in doc) should only be used when child category is unclear
+
 Please respond with a JSON object in this exact format. IMPORTANT: Use \\n for line breaks within JSON string values, not actual newlines:
 {
   "issueCategory": "Brief category from Common Support Issue Categories doc or custom 3-5 word description",
+  "topicTag": "exact tag name from Topic Tagging System doc (e.g., 'account-login/payment-sync', 'league-sync', 'sleeper-mini')",
   "angerScore": 0-100,
   "urgencyScore": 0-100,
   "angerTriggers": ["specific phrases showing anger"],
