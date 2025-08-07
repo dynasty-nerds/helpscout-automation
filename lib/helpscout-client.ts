@@ -171,6 +171,21 @@ export class HelpScoutClient {
     )
   }
 
+  async getTags(page: number = 1) {
+    await this.authenticate()
+
+    const response = await axios.get(`${this.baseURL}/tags`, {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+      },
+      params: {
+        page: page
+      }
+    })
+
+    return response.data
+  }
+
   async addTag(conversationId: number, tag: string) {
     await this.authenticate()
 

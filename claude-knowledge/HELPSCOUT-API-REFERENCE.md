@@ -195,9 +195,10 @@ GET /v2/conversations?tag=high-urgency
 - **Docs API Base**: `https://docsapi.helpscout.net/v1`
 - **Mailbox API Base**: `https://api.helpscout.net/v2`
 - **OAuth Token**: `https://api.helpscout.net/v2/oauth2/token`
-- **Our Docs Collection**: `5f285c7e04286342d763acc4`
-- **Fix Changelog Article**: `68919485bb013911a3b209ac`
-- **Known Issues Article**: `68919c52816719208b5a1a93`
+- **Internal Collection** (privately published): `6894d315cc94a96f86d43e59`
+  - **Fix Changelog Article**: `68919485bb013911a3b209ac` (moved to Internal)
+  - **Known Issues Article**: `68919c52816719208b5a1a93` (moved to Internal)
+  - **Tagging System Article**: `6894d33473b0d70353930e9e`
 
 ---
 

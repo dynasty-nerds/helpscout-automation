@@ -18,9 +18,11 @@ When working with HelpScout APIs, refer to:
 - **Mailbox API**: https://developer.helpscout.com/mailbox-api/
 
 ## Important Document IDs
-These unpublished documents are fetched explicitly on every scan:
-- **Fix Changelog**: `68919485bb013911a3b209ac`
-- **Known Issues**: `68919c52816719208b5a1a93`
+These documents are in the Internal collection (privately published) and fetched explicitly on every scan:
+- **Internal Collection**: `6894d315cc94a96f86d43e59`
+- **Fix Changelog**: `68919485bb013911a3b209ac` (in Internal collection)
+- **Known Issues**: `68919c52816719208b5a1a93` (in Internal collection)
+- **Tagging System**: `6894d33473b0d70353930e9e` (in Internal collection)
 
 ## Project Structure
 ```
