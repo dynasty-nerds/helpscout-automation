@@ -426,7 +426,14 @@ async function createAnalysisNote(
           lowerMessage.includes('refund') ||
           lowerMessage.includes('grandfathered') ||
           lowerMessage.includes('pay') ||
-          lowerMessage.includes('upgrade')
+          lowerMessage.includes('upgrade') ||
+          lowerMessage.includes('bought') ||
+          lowerMessage.includes('purchased') ||
+          lowerMessage.includes('plan') ||
+          lowerMessage.includes('cannot add') ||
+          lowerMessage.includes('can\'t add') ||
+          lowerMessage.includes('league') ||
+          lowerMessage.includes('member')
         
         if (needsMemberPress) {
           console.log(`Fetching MemberPress data for ${customerEmail}`)
