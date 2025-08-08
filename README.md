@@ -36,10 +36,12 @@ The system uses:
 
 ### Key Features
 - **Never auto-sends** - all responses are drafts for human review
-- **Smart tagging** based on sentiment analysis (anger score 0-100, urgency score 0-100)
+- **Hierarchical topic tagging** - Automatically assigns one topic tag per ticket from 40+ categories
+- **Sentiment analysis** - Detects anger (0-100) and urgency (0-100) scores
 - **Documentation-grounded** responses to prevent AI hallucination
 - **Tracks known issues** and recent fixes to provide accurate solutions
 - **Appreciates long-time customers** (auto-detects 2+ year members)
+- **MemberPress integration** - Always fetches subscription data for context
 
 ### Business Value
 Reduces agent response time by ~70%, ensures consistent quality responses, catches urgent issues immediately, and provides detailed context for every ticket - all while maintaining human oversight on every interaction.
@@ -110,15 +112,43 @@ vercel
 # Set environment variables in Vercel dashboard
 ```
 
+## Topic Tagging System
+
+The system automatically assigns one topic tag per ticket based on the [Topic Tagging System document](https://secure.helpscout.net/docs/6894d315cc94a96f86d43e59/article/6894d33473b0d70353930e9e/) in HelpScout.
+
+### Tag Structure
+- **Standalone Tags** (Green in HelpScout): Independent categories like `film-room`, `podcast`, `sleeper-mini`
+- **Parent/Child Tags** (Blue/Purple): Hierarchical tags like `account-login/payment-sync`, `league-sync/espn`
+- **Sentiment Tags**: Applied separately based on AI analysis (`angry-customer`, `high-urgency`, `spam`)
+
+### How It Works
+1. AI analyzes the ticket content and conversation history
+2. Matches the issue to the most specific tag possible
+3. Applies exactly ONE topic tag per ticket
+4. Adds sentiment tags if thresholds are met (anger ≥ 40, urgency ≥ 60)
+
+### Managing Tags
+All tags are defined in the HelpScout document above. To add/modify tags:
+1. Edit the Topic Tagging System document in HelpScout
+2. The system will automatically use the updated tags on the next scan
+3. No code changes required!
+
 ## API Endpoints
 
 ### Main Processing
 - `GET /api/scan-and-tag` - Process all active tickets
 - `GET /api/scan-and-tag?dryRun=true` - Test mode without making changes
+- `GET /api/scan-and-tag?conversationId=123456` - Process specific ticket
+
+### Response Generation
+- `POST /api/generate-response` - Generate template response for any issue
+- Test UI: https://helpscout-automation.vercel.app/test-generate-response.html
 
 ### Utilities
+- `GET /api/analyze-tags` - Analyze existing tags and get cleanup recommendations
 - `GET /api/check-test-tickets` - View specific ticket details
 - `GET /api/fastdraft-code?email={email}` - Look up FastDraft codes
+- `GET /api/test-connection` - Test HelpScout API connection
 
 ## System Architecture
 
