@@ -91,9 +91,13 @@ Please respond with a JSON object in this exact format:
       relevantDocs
     )
 
-    // Format the final response - convert \n\n to actual line breaks
+    // Format the final response - ensure proper line breaks for HelpScout
+    // HelpScout seems to need double line breaks to display as paragraphs
     const formattedResponse = response.suggestedResponse
-      ? response.suggestedResponse.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n')
+      ? response.suggestedResponse
+          .replace(/\\n\\n/g, '\n\n')  // Convert escaped double newlines
+          .replace(/\\n/g, '\n')        // Convert escaped single newlines
+          .replace(/\n(?!\n)/g, '\n\n') // Make single line breaks into double for HelpScout
       : ''
     
     const result = {

@@ -171,6 +171,20 @@
     </div>
 
     <script>
+        function copyToClipboard() {
+            const textarea = document.getElementById('responseText');
+            textarea.select();
+            document.execCommand('copy');
+            
+            // Show feedback
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '✅ Copied!';
+            setTimeout(() => {
+                button.textContent = originalText;
+            }, 2000);
+        }
+        
         async function generateResponse() {
             const button = document.querySelector('button');
             const resultDiv = document.getElementById('result');
@@ -208,36 +222,17 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    // Use a textarea for better copy-paste compatibility with HelpScout
                     resultDiv.innerHTML = `
                         <div class="response-container">
                             <h3>Generated Response:</h3>
-                            <div class="response-text">${data.response}</div>
+                            <textarea 
+                                id="responseText"
+                                class="response-text" 
+                                style="width: 100%; min-height: 300px; border: none; background: transparent; resize: vertical;"
+                                readonly>${data.response}</textarea>
+                            <button onclick="copyToClipboard()" style="margin-top: 10px;">📋 Copy to Clipboard</button>
                             <div class="metadata">
-                                <div class="metadata-item">
-                                    <strong>Category:</strong> ${data.metadata.issueCategory}
-                                </div>
-                                <div class="metadata-item">
-                                    <strong>Confidence:</strong> ${(data.metadata.confidence * 100).toFixed(0)}%
-                                </div>
-                                <div class="metadata-item">
-                                    <strong>Response Length:</strong> ${data.metadata.responseLength}
-                                </div>
-                                <div class="metadata-item">
-                                    <strong>Recommended Tags:</strong>
-                                    <div class="tags">
-                                        ${data.metadata.recommendedTags.map(tag => 
-                                            `<span class="tag">${tag}</span>`
-                                        ).join('')}
-                                    </div>
-                                </div>
-                                <div class="metadata-item">
-                                    <strong>Key Points:</strong>
-                                    <ul>
-                                        ${data.metadata.keyPoints.map(point => 
-                                            `<li>${point}</li>`
-                                        ).join('')}
-                                    </ul>
-                                </div>
                                 <div class="metadata-item">
                                     <strong>Cost:</strong> $${data.metadata.cost.toFixed(4)}
                                 </div>
