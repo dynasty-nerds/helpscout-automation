@@ -677,6 +677,79 @@ CRITICAL RESPONSE GENERATION RULES:
     }
   }
 
+  // Generate a template response for a common issue
+  async generateTemplateResponse(
+    issueDescription: string,
+    systemPrompt: string,
+    relevantDocs: any[]
+  ): Promise<any> {
+    try {
+      // Format documentation for context
+      const docsContext = relevantDocs.map(doc => 
+        `**${doc.name || doc.title}**\n${doc.text || doc.content || ''}\nURL: ${doc.publicUrl || doc.url || ''}\n`
+      ).join('\n---\n')
+
+      const messages = [
+        {
+          role: 'user',
+          content: `Issue Description: ${issueDescription}\n\nRelevant Documentation:\n${docsContext || 'No specific documentation found.'}`
+        }
+      ]
+
+      const response = await axios.post(
+        this.baseURL,
+        {
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 2000,
+          temperature: 0.3,
+          system: systemPrompt,
+          messages: messages
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01'
+          }
+        }
+      )
+
+      const content = response.data.content[0].text
+      console.log('Raw Claude response (first 300 chars):', content.substring(0, 300))
+
+      // Parse JSON response
+      let result
+      try {
+        result = JSON.parse(content)
+      } catch (error) {
+        console.error('Failed to parse Claude response as JSON:', error)
+        // Fallback: try to extract JSON from the response
+        const jsonMatch = content.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0])
+        } else {
+          throw new Error('Invalid JSON response from Claude')
+        }
+      }
+
+      // Track usage
+      const inputTokens = response.data.usage?.input_tokens || 0
+      const outputTokens = response.data.usage?.output_tokens || 0
+      const cost = this.estimateCost(inputTokens, outputTokens)
+
+      return {
+        ...result,
+        cost,
+        inputTokens,
+        outputTokens
+      }
+
+    } catch (error: any) {
+      console.error('Claude API error:', error.response?.data || error.message)
+      throw error
+    }
+  }
+
   // Simple cost estimation
   estimateCost(inputTokens: number, outputTokens: number): number {
     // Claude 3.5 Sonnet pricing: $3/1M input, $15/1M output
