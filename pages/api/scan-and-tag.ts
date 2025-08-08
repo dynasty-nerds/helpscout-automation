@@ -412,32 +412,13 @@ async function createAnalysisNote(
         })
       }
       
-      // Check if we need MemberPress data based on the message content
+      // ALWAYS fetch MemberPress data for initial analysis (useful for agents and tenure appreciation)
+      // Skip on escalations to avoid duplicate fetches
       let memberPressContext = null
       const customerEmail = conversation.primaryCustomer?.email
-      if (customerEmail) {
-        const lowerMessage = customerMessage.toLowerCase()
-        const needsMemberPress = 
-          lowerMessage.includes('access') ||
-          lowerMessage.includes('premium') ||
-          lowerMessage.includes('subscription') ||
-          lowerMessage.includes('billing') ||
-          lowerMessage.includes('cancel') ||
-          lowerMessage.includes('refund') ||
-          lowerMessage.includes('grandfathered') ||
-          lowerMessage.includes('pay') ||
-          lowerMessage.includes('upgrade') ||
-          lowerMessage.includes('bought') ||
-          lowerMessage.includes('purchased') ||
-          lowerMessage.includes('plan') ||
-          lowerMessage.includes('cannot add') ||
-          lowerMessage.includes('can\'t add') ||
-          lowerMessage.includes('league') ||
-          lowerMessage.includes('member')
-        
-        if (needsMemberPress) {
-          console.log(`Fetching MemberPress data for ${customerEmail}`)
-          try {
+      if (customerEmail && isInitial) {
+        console.log(`Fetching MemberPress data for ${customerEmail} (initial analysis)`)
+        try {
             memberPressContext = await memberPressService.getMemberPressContext(customerEmail)
             console.log('MemberPress data retrieved:', JSON.stringify(memberPressContext, null, 2))
             
@@ -445,12 +426,14 @@ async function createAnalysisNote(
             conversationHistory += `\n\nMemberPress Subscription Data:
 User Email: ${customerEmail}
 ${JSON.stringify(memberPressContext, null, 2)}\n`
-          } catch (error) {
-            console.error('Error fetching MemberPress data:', error)
-          }
+        } catch (error) {
+          console.error('Error fetching MemberPress data:', error)
+          // Continue without MemberPress data - not all customers will have accounts
         }
+      }
 
-        // Check if we need FastDraft code lookup
+      // Check if we need FastDraft code lookup (only on initial analysis)
+      if (customerEmail && isInitial) {
         // Check tags for fastdraft
         const hasFastDraftTag = conversation.tags?.some((tag: any) => 
           tag.tag?.toLowerCase().includes('fastdraft') || 
@@ -459,6 +442,7 @@ ${JSON.stringify(memberPressContext, null, 2)}\n`
         
         // Check subject for FastDraft
         const subjectLower = (conversation.subject || '').toLowerCase()
+        const lowerMessage = customerMessage.toLowerCase()
         
         const needsFastDraft = 
           hasFastDraftTag ||
