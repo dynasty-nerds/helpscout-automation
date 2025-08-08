@@ -350,6 +350,18 @@ async function createAnalysisNote(
         console.error('Failed to fetch known issues document:', error)
       }
       
+      // Always fetch the discount codes document (for grandfathered pricing)
+      let discountCodesDoc = null
+      try {
+        const discountCodesId = '689559bb73b0d70353931024'
+        discountCodesDoc = await docsClient.getArticle(discountCodesId)
+        if (discountCodesDoc) {
+          console.log('Successfully fetched discount codes document')
+        }
+      } catch (error) {
+        console.error('Failed to fetch discount codes document:', error)
+      }
+      
       // No longer loading static learning files - documentation gaps tracked per-ticket
       
       // Build conversation history
@@ -396,6 +408,19 @@ async function createAnalysisNote(
           collectionId: knownIssuesDoc.collectionId || '',
           status: knownIssuesDoc.status || 'published',
           updatedAt: knownIssuesDoc.updatedAt || new Date().toISOString()
+        })
+      }
+      
+      // Add discount codes document if available (for grandfathered pricing)
+      if (discountCodesDoc) {
+        contextDocs.unshift({
+          id: discountCodesDoc.id,
+          name: discountCodesDoc.name || 'Discount Codes',
+          text: discountCodesDoc.text || '',
+          publicUrl: 'https://secure.helpscout.net/docs/6894d315cc94a96f86d43e59/article/689559bb73b0d70353931024/',
+          collectionId: discountCodesDoc.collectionId || '',
+          status: discountCodesDoc.status || 'published',
+          updatedAt: discountCodesDoc.updatedAt || new Date().toISOString()
         })
       }
       

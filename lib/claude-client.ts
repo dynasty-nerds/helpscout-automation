@@ -277,8 +277,15 @@ If the customer mentions any of these keywords, categorize as "MemberPress Acces
 If the customer mentions any of these keywords, categorize as "MemberPress Billing Query":
 - How much they're paying
 - Billing history questions
-- Claiming grandfathered rate
+- Claiming grandfathered rate (CHECK DISCOUNT CODES DOCUMENT)
 - Transaction/charge questions
+
+DISCOUNT CODES FOR GRANDFATHERED PRICING:
+When a customer claims they should have a lower "grandfathered" rate:
+1. Check the Discount Codes document for available codes
+2. If they qualify based on their subscription history, provide the appropriate code
+3. These codes help long-time customers keep their original pricing
+4. Only mention discount codes when pricing/billing is specifically discussed
 
 If the customer mentions any of these keywords, categorize as "MemberPress Cancellation":
 - Cancel subscription

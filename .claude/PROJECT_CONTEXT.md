@@ -23,6 +23,7 @@ These documents are in the Internal collection (privately published) and fetched
 - **Fix Changelog**: `68919485bb013911a3b209ac` (in Internal collection)
 - **Known Issues**: `68919c52816719208b5a1a93` (in Internal collection)
 - **Tagging System**: `6894d33473b0d70353930e9e` (in Internal collection)
+- **Discount Codes**: `689559bb73b0d70353931024` (for grandfathered pricing)
 
 ## Project Structure
 ```
