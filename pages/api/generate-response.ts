@@ -91,10 +91,14 @@ Please respond with a JSON object in this exact format:
       relevantDocs
     )
 
-    // Format the final response
+    // Format the final response - convert \n\n to actual line breaks
+    const formattedResponse = response.suggestedResponse
+      ? response.suggestedResponse.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n')
+      : ''
+    
     const result = {
       success: true,
-      response: response.suggestedResponse,
+      response: formattedResponse,
       metadata: {
         issueCategory: response.issueCategory || 'General Issue',
         recommendedTags: response.recommendedTags || [],
